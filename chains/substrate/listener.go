@@ -175,7 +175,6 @@ func (l *listener) pollBlocks() error {
 						recipient[:],
 					)
 					l.submitMessage(m, err)
-
 				}
 			}
 			for _, e := range events.Balances_Deposit {
