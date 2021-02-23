@@ -6,11 +6,9 @@ package substrate
 import (
 	"errors"
 	"fmt"
-	"github.com/centrifuge/go-substrate-rpc-client/config"
-	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
-	rpcConfig "github.com/centrifuge/go-substrate-rpc-client/v2/config"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
+
 	"github.com/ethereum/go-ethereum/common"
+
 	"math/big"
 	"time"
 
@@ -20,6 +18,8 @@ import (
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
+	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
+	rpcConfig "github.com/centrifuge/go-substrate-rpc-client/v2/config"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 )
 
@@ -171,6 +171,7 @@ func (l *listener) pollBlocks() error {
 					recipient := types.NewAccountID(common.FromHex("0xff93B45308FD417dF303D6515aB04D9e89a750Ca"))
 					rId := msg.ResourceIdFromSlice(common.FromHex("0x000000000000000000000000000000c76ebe4a02bbc34786d860b355f5a5ce00"))
 
+					fmt.Printf("before ++, depositNonce is %v\n", l.depositNonce[recipient])
 					l.depositNonce[recipient]++
 					fmt.Printf("this time,depositNonce is %v\n", l.depositNonce[recipient])
 
@@ -184,9 +185,6 @@ func (l *listener) pollBlocks() error {
 						recipient[:],
 					)
 					l.submitMessage(m, err)
-
-					fmt.Printf("try to make a simpleTransfer\n")
-					simpleTransfer()
 				}
 			}
 			for _, e := range events.Balances_Deposit {
@@ -223,9 +221,9 @@ func (l *listener) pollBlocks() error {
 				fmt.Printf("\tStaking:Slash:: (phase=%#v)\n", e.Phase)
 				fmt.Printf("\t\t%#x%v\n", e.AccountID, e.Balance)
 			}
-			for _, e := range events.System_ExtrinsicSuccess {
-				fmt.Printf("\tSystem:ExtrinsicSuccess:: (phase=%#v)\n", e.Phase)
-			}
+			//for _, e := range events.System_ExtrinsicSuccess {
+			//	fmt.Printf("\tSystem:ExtrinsicSuccess:: (phase=%#v)\n", e.Phase)
+			//}
 			for _, e := range events.System_ExtrinsicFailed {
 				fmt.Printf("\tSystem:ErtrinsicFailed:: (phase=%#v)\n", e.Phase)
 				fmt.Printf("\t\t%v\n", e.DispatchError)
@@ -244,208 +242,6 @@ func (l *listener) pollBlocks() error {
 			for _, e := range events.Multisig_MultisigCancelled {
 				fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
 			}
-		}
-	}
-}
-
-func makeTansfer() {
-	//var multiSignPk, err = types.HexDecodeString("0x96255ecf5f66b58074da258ad20e6d74fedc900798687ff86547efe30ec2e7c6")
-	//var multiSignAccount = types.NewAccountID(multiSignPk)
-	//
-	//api, err := gsrpc.NewSubstrateAPI(rpcConfig.Default().RPCURL)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//meta, err := api.RPC.State.GetMetadataLatest()
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//// Create a call, transferring 12345 units to Bob
-	//bob, err := types.NewAddressFromHexAccountID("0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48")
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//amount := types.NewUCompactFromUInt(12345)
-	//
-	//cc, err := types.NewCall(meta, "Multisig.As", bob, amount)
-	//if err != nil {
-	//	panic(err)
-	//}
-}
-func simpleTransfer() {
-	// Instantiate the API
-	api, err := gsrpc.NewSubstrateAPI(config.Default().RPCURL)
-	if err != nil {
-		panic(err)
-	}
-
-	meta, err := api.RPC.State.GetMetadataLatest()
-	if err != nil {
-		panic(err)
-	}
-
-	//serialize signature data
-	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
-
-	// Create a call, transferring 5555 units to EVE
-	fred, err := types.NewAddressFromHexAccountID("0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c")
-	if err != nil {
-		panic(err)
-	}
-
-	var amount = types.NewUCompactFromUInt(5555)
-
-	c, err := types.NewCall(meta, "Balances.transfer", fred, amount)
-	if err != nil {
-		panic(err)
-	}
-
-	// Create the extrinsic
-	ext := types.NewExtrinsic(c)
-
-	genesisHash, err := api.RPC.Chain.GetBlockHash(0)
-	if err != nil {
-		panic(err)
-	}
-
-	rv, err := api.RPC.State.GetRuntimeVersionLatest()
-	if err != nil {
-		panic(err)
-	}
-
-	//key, err := types.CreateStorageKey(meta, "System", "AccountNonce", signature.TestKeyringPairAlice.PublicKey, nil)
-	key, err := types.CreateStorageKey(meta, "System", "Account", signature.TestKeyringPairAlice.PublicKey, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	var nonce uint32
-	_, err = api.RPC.State.GetStorageLatest(key, &nonce)
-	if err != nil {
-		panic(err)
-	}
-
-	o := types.SignatureOptions{
-		BlockHash:   genesisHash,
-		Era:         types.ExtrinsicEra{IsMortalEra: false},
-		GenesisHash: genesisHash,
-		Nonce:       types.NewUCompactFromUInt(uint64(nonce)),
-		SpecVersion: rv.SpecVersion,
-		Tip:         types.NewUCompactFromUInt(0),
-	}
-
-	fmt.Printf("Sending %v from %#x to %#x with nonce %v", amount, signature.TestKeyringPairAlice.PublicKey, fred.AsAccountID, nonce)
-
-	// Sign the transaction using Alice's default account
-	err = ext.Sign(signature.TestKeyringPairAlice, o)
-	if err != nil {
-		panic(err)
-	}
-
-	// Do the transfer and track the actual status
-	sub, err := api.RPC.Author.SubmitAndWatchExtrinsic(ext)
-
-	if err != nil {
-		panic(err)
-	}
-	defer sub.Unsubscribe()
-
-	for {
-		status := <-sub.Chan()
-		fmt.Printf("Transaction status: %#v\n", status)
-
-		if status.IsFinalized {
-			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
-			return
-		}
-	}
-}
-
-func multiTransfer() {
-	// This sample shows how to create a transaction to make a transfer from one an account to another.
-
-	// Instantiate the API
-	api, err := gsrpc.NewSubstrateAPI(config.Default().RPCURL)
-	if err != nil {
-		panic(err)
-	}
-
-	meta, err := api.RPC.State.GetMetadataLatest()
-	if err != nil {
-		panic(err)
-	}
-
-	// Create a call, transferring 5555 units to EVE
-	fred, err := types.NewAddressFromHexAccountID("0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c")
-	if err != nil {
-		panic(err)
-	}
-
-	var amount = types.NewUCompactFromUInt(5555)
-
-	c, err := types.NewCall(meta, "Balances.transfer", fred, amount)
-	if err != nil {
-		panic(err)
-	}
-
-	// Create the extrinsic
-	ext := types.NewExtrinsic(c)
-
-	genesisHash, err := api.RPC.Chain.GetBlockHash(0)
-	if err != nil {
-		panic(err)
-	}
-
-	rv, err := api.RPC.State.GetRuntimeVersionLatest()
-	if err != nil {
-		panic(err)
-	}
-
-	//key, err := types.CreateStorageKey(meta, "System", "AccountNonce", signature.TestKeyringPairAlice.PublicKey, nil)
-	key, err := types.CreateStorageKey(meta, "System", "Account", signature.TestKeyringPairAlice.PublicKey, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	var nonce uint32
-	_, err = api.RPC.State.GetStorageLatest(key, &nonce)
-	if err != nil {
-		panic(err)
-	}
-
-	o := types.SignatureOptions{
-		BlockHash:   genesisHash,
-		Era:         types.ExtrinsicEra{IsMortalEra: false},
-		GenesisHash: genesisHash,
-		Nonce:       types.NewUCompactFromUInt(uint64(nonce)),
-		SpecVersion: rv.SpecVersion,
-		Tip:         types.NewUCompactFromUInt(0),
-	}
-
-	fmt.Printf("Sending %v from %#x to %#x with nonce %v", amount, signature.TestKeyringPairAlice.PublicKey, fred.AsAccountID, nonce)
-
-	// Sign the transaction using Alice's default account
-	err = ext.Sign(signature.TestKeyringPairAlice, o)
-	if err != nil {
-		panic(err)
-	}
-
-	// Do the transfer and track the actual status
-	sub, err := api.RPC.Author.SubmitAndWatchExtrinsic(ext)
-	if err != nil {
-		panic(err)
-	}
-	defer sub.Unsubscribe()
-
-	for {
-		status := <-sub.Chan()
-		fmt.Printf("Transaction status: %#v\n", status)
-
-		if status.IsFinalized {
-			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
-			return
 		}
 	}
 }
