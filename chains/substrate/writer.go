@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
+	"math/big"
 	"time"
 	"unsafe"
 
@@ -110,9 +111,14 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 	recipient := types.NewAddressFromAccountID(m.Payload[1].([]byte))
 
-	//bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
+	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
+
+	oneEth := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
+	bigAmt.Div(bigAmt, oneEth)
+
 	//amount := types.NewUCompactFromUInt()
-	//amount := types.NewUCompact(bigAmt)
+	amount := types.NewUCompact(bigAmt)
+
 	//bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
 	//amount := types.NewUCompact(*bigAmt)
 	//
@@ -121,8 +127,8 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 	//amt := binary.BigEndian.(m.Payload[0].([]byte))
 
-	u8 := m.Payload[0].([]byte)
-	amt := ByteArrayToInt(u8)
+	//u8 := m.Payload[0].([]byte)
+	//amt := ByteArrayToInt(u8)
 	//amtStr := strconv.FormatInt(amt, 10)
 
 	//u64LE := binary.LittleEndian.Uint64(u8)
@@ -130,7 +136,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 	//fmt.Println("little-endian:",u8, "to", u64LE)
 	//fmt.Println("big-endian:   ", u8, "to", u64BE)
 
-	var amount = types.NewUCompactFromUInt(uint64(amt))
+	//var amount = types.NewUCompactFromUInt(uint64(amt))
 
 	c, err := types.NewCall(
 		meta,
