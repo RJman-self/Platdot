@@ -47,14 +47,13 @@ func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error, m *metri
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	fmt.Printf("--------------------------Writer try to make a simpleTransfer------------------------------------------\n")
-	w.redeemTx(m)
+	//w.redeemTx(m)
+	w.redeemMultiSignTx(m)
 	fmt.Printf("--------------------------Writer make a simpleTransfer over------------------------------------------\n")
 	return true
 }
 
 func (w *writer) redeemTx(m msg.Message) bool {
-	// This sample shows how to create a transaction to make a transfer from one an account to another.
-
 	// Instantiate the API
 	//api, err := gsrpc.NewSubstrateAPI(config.Default().RPCURL)
 	//if err != nil {
@@ -71,26 +70,10 @@ func (w *writer) redeemTx(m msg.Message) bool {
 	//serialize signature data
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
 
-	////parameters with call
-	//bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
-	//amount := types.NewU128(*bigAmt)
-	//recipient := types.NewAccountID(m.Payload[1].([]byte))
-	////depositNonce := types.U64(m.DepositNonce)
-	//
-	//method := "Balances.transfer"
-	//
-	//if err != nil {
-	//	panic(err)
-	//}
-	//
-	//c, err := types.NewCall(
-	//	meta,
-	//	method,
-	//	recipient,
-	//	amount,
-	//)
+	//depositNonce := types.U64(m.DepositNonce)
 
 	// Create a call, transferring 123 units to fred
+
 	//recipient, err := types.NewAddressFromHexAccountID("0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c")
 	//recipient := types.NewAccountID(m.Payload[1].([]byte))
 	method := "Balances.transfer"
@@ -112,11 +95,12 @@ func (w *writer) redeemTx(m msg.Message) bool {
 	recipient := types.NewAddressFromAccountID(m.Payload[1].([]byte))
 
 	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
+	//eth 10^18
+	//polkadot Unit 10^12
+	//oneToken := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
 
-	oneEth := new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
-	bigAmt.Div(bigAmt, oneEth)
-
-	//amount := types.NewUCompactFromUInt()
+	oneToken := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
+	bigAmt.Div(bigAmt, oneToken)
 	amount := types.NewUCompact(bigAmt)
 
 	//bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
@@ -196,6 +180,95 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 	// Do the transfer and track the actual status
 	//sub, err := api.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	sub, err := w.conn.api.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	if err != nil {
+		panic(err)
+	}
+	defer sub.Unsubscribe()
+
+	for {
+		status := <-sub.Chan()
+		fmt.Printf("Transaction status: %#v\n", status)
+
+		if status.IsFinalized {
+			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
+		}
+	}
+}
+
+func (w *writer) redeemMultiSignTx(m msg.Message) bool {
+	meta, err := w.conn.api.RPC.State.GetMetadataLatest()
+	if err != nil {
+		panic(err)
+	}
+
+	//serialize signature data
+	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
+
+	//depositNonce := types.U64(m.DepositNonce)
+	method := "Balances.transfer"
+	recipient := types.NewAddressFromAccountID(m.Payload[1].([]byte))
+
+	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
+	oneToken := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
+	bigAmt.Div(bigAmt, oneToken)
+	amount := types.NewUCompact(bigAmt)
+
+	c, err := types.NewCall(
+		meta,
+		method,
+		recipient,
+		amount,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	// Create the extrinsic
+	ext := types.NewExtrinsic(c)
+
+	//genesisHash, err := api.RPC.Chain.GetBlockHash(0)
+	genesisHash, err := w.conn.api.RPC.Chain.GetBlockHash(0)
+	if err != nil {
+		panic(err)
+	}
+
+	//rv, err := api.RPC.State.GetRuntimeVersionLatest()
+	rv, err := w.conn.api.RPC.State.GetRuntimeVersionLatest()
+	if err != nil {
+		panic(err)
+	}
+
+	key, err := types.CreateStorageKey(meta, "System", "Account", signature.TestKeyringPairAlice.PublicKey, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	var accountInfo types.AccountInfo
+	ok, err := w.conn.api.RPC.State.GetStorageLatest(key, &accountInfo)
+	if err != nil || !ok {
+		panic(err)
+	}
+
+	nonce := uint32(accountInfo.Nonce)
+
+	o := types.SignatureOptions{
+		BlockHash:          genesisHash,
+		Era:                types.ExtrinsicEra{IsMortalEra: false},
+		GenesisHash:        genesisHash,
+		Nonce:              types.NewUCompactFromUInt(uint64(nonce)),
+		SpecVersion:        rv.SpecVersion,
+		Tip:                types.NewUCompactFromUInt(0),
+		TransactionVersion: rv.TransactionVersion,
+	}
+	fmt.Printf("Sending %v from %#x to %#x with nonce %v", amount, signature.TestKeyringPairAlice.PublicKey, recipient.AsAccountID, nonce)
+
+	// Sign the transaction using Alice's default account
+	err = ext.Sign(signature.TestKeyringPairAlice, o)
+	if err != nil {
+		panic(err)
+	}
+
 	sub, err := w.conn.api.RPC.Author.SubmitAndWatchExtrinsic(ext)
 	if err != nil {
 		panic(err)
