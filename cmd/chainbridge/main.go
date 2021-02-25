@@ -238,7 +238,7 @@ func run(ctx *cli.Context) error {
 
 	go func() {
 		//redeemTxAlice()
-		//redeemTx()
+		redeemTx()
 		//redeemMultiSignTx()
 	}()
 
@@ -343,15 +343,30 @@ func redeemTxAlice() bool {
 }
 
 func redeemTx() bool {
-	nnnPk := types.MustHexDecodeString("0x3418f5e3f3e90db1e870bee7a2909d3ecb27623ed07b220aaf205f053c660c1e")
 	kr := signature.TestKeyringPairAlice
 	krp := signature.TestKeyringPairAlice.PublicKey
-	fmt.Printf("=============Alice=====================")
+	fmt.Printf("=============Alice=====================\n")
 	fmt.Printf("Alice keyring: %v\n", kr)
 	fmt.Printf("Alice keyring.PublicKey: %v\n", krp)
-	fmt.Printf("=======================================")
-	api, err := gsrpc.NewSubstrateAPI(rpcConfig.Default().RPCURL)
+	fmt.Printf("=======================================\n")
 
+	var seed = "0xc797fbfb4a2f8dea4ef00b19d25c263ce835852e5e4b7ff2345b05215338c9b4"
+	var addr = "5DyhbKavDtMijvnsTxnRVySqfyeXi9eUejhE8sANTK33h6UT"
+	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
+	nnnPk := types.MustHexDecodeString("0x54a7595feeefd067568b31f85f052fbbe0a5a0812979466bab9243e2ce80e26f")
+
+	nnn := signature.KeyringPair{
+		URI:       seed,
+		Address:   addr,
+		PublicKey: nnnPk,
+	}
+
+	fmt.Printf("=============Alice=====================\n")
+	fmt.Printf("NNN keyring: %v\n", nnn)
+	fmt.Printf("NNN keyring.PublicKey: %v\n", nnnPk)
+	fmt.Printf("=======================================\n")
+
+	api, err := gsrpc.NewSubstrateAPI(rpcConfig.Default().RPCURL)
 	meta, err := api.RPC.State.GetMetadataLatest()
 	if err != nil {
 		panic(err)
@@ -405,16 +420,6 @@ func redeemTx() bool {
 		SpecVersion:        rv.SpecVersion,
 		Tip:                types.NewUCompactFromUInt(0),
 		TransactionVersion: rv.TransactionVersion,
-	}
-
-	var seed = "0x294068dcf6f88d2ecad225c55560417cd93bbf78b551026495294575d6267fc7"
-	var addr = "5DF1m9a6vQwyoyrzj8JMwM1bVrwBRKXhnVP28eH95b7BhX7W"
-	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
-
-	nnn := signature.KeyringPair{
-		URI:       seed,
-		Address:   addr,
-		PublicKey: nnnPk,
 	}
 
 	fmt.Printf("Sending %v from %#x to %#x with nonce %v\n", amount, nnnPk, recipient.AsAccountID, nonce)
