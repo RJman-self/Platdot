@@ -101,7 +101,10 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 	}
 	kp, _ := kpI.(*secp256k1.Keypair)
 
+	//kp, _ := kpI.(*sr25519.Keypair)
+
 	bs, err := setupBlockstore(cfg, kp)
+	//bs, err := setupBlockstore()
 	if err != nil {
 		return nil, err
 	}

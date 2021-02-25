@@ -47,12 +47,13 @@ func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error, m *metri
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	fmt.Printf("--------------------------Writer try to make a simpleTransfer------------------------------------------\n")
-	//w.redeemTx(m)
-	w.redeemMultiSignTx(m)
+	w.redeemTx(m)
+	//w.redeemMultiSignTx(m)
 	fmt.Printf("--------------------------Writer make a simpleTransfer over------------------------------------------\n")
 	return true
 }
 
+// 赎回：eth to sub (Alice to Fred)
 func (w *writer) redeemTx(m msg.Message) bool {
 	// Instantiate the API
 	//api, err := gsrpc.NewSubstrateAPI(config.Default().RPCURL)
@@ -197,6 +198,13 @@ func (w *writer) redeemTx(m msg.Message) bool {
 }
 
 func (w *writer) redeemMultiSignTx(m msg.Message) bool {
+
+	//var multiSignPk, err = types.HexDecodeString("0x49daa32c7287890f38b7e1a8cd2961723d36d20baa0bf3b82e0c4bdda93b1c0a")
+	//var multiSignAccount = types.NewAccountID(multiSignPk)
+
+	nnnPk := types.MustHexDecodeString("0x3418f5e3f3e90db1e870bee7a2909d3ecb27623ed07b220aaf205f053c660c1e")
+	//var nnnAccount = types.NewAccountID(nnnPk)
+
 	meta, err := w.conn.api.RPC.State.GetMetadataLatest()
 	if err != nil {
 		panic(err)
@@ -206,9 +214,22 @@ func (w *writer) redeemMultiSignTx(m msg.Message) bool {
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
 
 	//depositNonce := types.U64(m.DepositNonce)
-	method := "Balances.transfer"
-	recipient := types.NewAddressFromAccountID(m.Payload[1].([]byte))
 
+	//BEGIN: Create a call of MultiSignTransfer
+	//mulMethod := "Multisig.as_multi"
+	//
+	//var threshold = uint16(2)
+	//// parameters of multiSignature
+	//var Bob = types.NewAccountID([]byte("5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"))
+	//var Charlie = types.NewAccountID([]byte("5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"))
+
+	//var otherSignatories = []types.AccountID{Bob, Charlie}
+	//var maybeTimepoint = 0
+	//var maxWeight = 0
+
+	//BEGIN: Create a call of transfer
+	method := "Balances.transfer_keep_alive"
+	recipient := types.NewAddressFromAccountID(m.Payload[1].([]byte))
 	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
 	oneToken := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
 	bigAmt.Div(bigAmt, oneToken)
@@ -220,6 +241,23 @@ func (w *writer) redeemMultiSignTx(m msg.Message) bool {
 		recipient,
 		amount,
 	)
+	if err != nil {
+		panic(err)
+	}
+	//END: Create a call of transfer
+
+	//mc, err := types.NewCall(
+	//	meta,
+	//	mulMethod,
+	//	threshold,
+	//	otherSignatories,
+	//	maybeTimepoint,
+	//	c,
+	//	false,
+	//	maxWeight,
+	//)
+
+	//END: Create a call of MultiSignTransfer
 	if err != nil {
 		panic(err)
 	}
@@ -239,7 +277,8 @@ func (w *writer) redeemMultiSignTx(m msg.Message) bool {
 		panic(err)
 	}
 
-	key, err := types.CreateStorageKey(meta, "System", "Account", signature.TestKeyringPairAlice.PublicKey, nil)
+	//key, err := types.CreateStorageKey(meta, "System", "Account", signature.TestKeyringPairAlice.PublicKey, nil)
+	key, err := types.CreateStorageKey(meta, "System", "Account", nnnPk, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -261,10 +300,26 @@ func (w *writer) redeemMultiSignTx(m msg.Message) bool {
 		Tip:                types.NewUCompactFromUInt(0),
 		TransactionVersion: rv.TransactionVersion,
 	}
-	fmt.Printf("Sending %v from %#x to %#x with nonce %v", amount, signature.TestKeyringPairAlice.PublicKey, recipient.AsAccountID, nonce)
+
+	fmt.Printf("===================================================================================")
+	fmt.Printf("Multisign: Sending %v from %#x to %#x with nonce %v", amount, signature.TestKeyringPairAlice.PublicKey, recipient.AsAccountID, nonce)
+	fmt.Printf("===================================================================================")
 
 	// Sign the transaction using Alice's default account
-	err = ext.Sign(signature.TestKeyringPairAlice, o)
+	//nnn,err := signature.KeyringPairFromSecret(
+	//	"0x294068dcf6f88d2ecad225c55560417cd93bbf78b551026495294575d6267fc7",
+	//	1,
+	//)
+	var seed = "0x294068dcf6f88d2ecad225c55560417cd93bbf78b551026495294575d6267fc7"
+	var addr = "5DF1m9a6vQwyoyrzj8JMwM1bVrwBRKXhnVP28eH95b7BhX7W"
+	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
+
+	nnn := signature.KeyringPair{
+		URI:       seed,
+		Address:   addr,
+		PublicKey: nnnPk,
+	}
+	err = ext.Sign(nnn, o)
 	if err != nil {
 		panic(err)
 	}
@@ -280,6 +335,7 @@ func (w *writer) redeemMultiSignTx(m msg.Message) bool {
 		fmt.Printf("Transaction status: %#v\n", status)
 
 		if status.IsFinalized {
+			//w.conn.api.
 			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
 		}
 	}
