@@ -68,19 +68,19 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 
 	//krp := kp.(*sr25519.Keypair).AsKeyringPair()
 
-	nnnPk := types.MustHexDecodeString("0x54a7595feeefd067568b31f85f052fbbe0a5a0812979466bab9243e2ce80e26f")
+	sssPk := types.MustHexDecodeString("0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075")
 
-	var seed = "0xc797fbfb4a2f8dea4ef00b19d25c263ce835852e5e4b7ff2345b05215338c9b4"
-	var addr = "5DyhbKavDtMijvnsTxnRVySqfyeXi9eUejhE8sANTK33h6UT"
+	var seed = "0x3c0c4fc26010d0512cd36a0f467375b3dbe2f207bbfda0c551b5e41ee495e909"
+	var addr = "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm"
 	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
 
-	nnn := signature.KeyringPair{
+	sss := signature.KeyringPair{
 		URI:       seed,
 		Address:   addr,
-		PublicKey: nnnPk,
+		PublicKey: sssPk,
 	}
 
-	var kp = sr25519.NewKeypairFromKRP(signature2.KeyringPair(nnn))
+	var kp = sr25519.NewKeypairFromKRP(signature2.KeyringPair(sss))
 
 	// Attempt to load latest block
 	bs, err := blockstore.NewBlockstore(cfg.BlockstorePath, cfg.Id, kp.Address())
@@ -97,7 +97,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 
 	stop := make(chan int)
 	// Setup connection
-	conn := NewConnection(cfg.Endpoint, cfg.Name, &nnn, logger, stop, sysErr)
+	conn := NewConnection(cfg.Endpoint, cfg.Name, &sss, logger, stop, sysErr)
 	err = conn.Connect()
 	if err != nil {
 		return nil, err

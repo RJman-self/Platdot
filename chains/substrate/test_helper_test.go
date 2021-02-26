@@ -4,6 +4,7 @@
 package substrate
 
 import (
+	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
 	"os"
 	"testing"
 
@@ -59,7 +60,7 @@ type testContext struct {
 var context testContext
 
 func TestMain(m *testing.M) {
-	client, err := utils.CreateClient(AliceKey, TestEndpoint)
+	client, err := utils.CreateClient((*signature.KeyringPair)(AliceKey), TestEndpoint)
 	if err != nil {
 		panic(err)
 	}
@@ -119,7 +120,7 @@ func newTestLogger(name string) log15.Logger {
 // createAliceConnection creates and starts a connection with the Alice keypair
 func createAliceConnection() (*Connection, chan error, error) {
 	sysErr := make(chan error)
-	alice := NewConnection(TestEndpoint, "Alice", AliceKey, AliceTestLogger, make(chan int), sysErr)
+	alice := NewConnection(TestEndpoint, "Alice", (*signature.KeyringPair)(AliceKey), AliceTestLogger, make(chan int), sysErr)
 	err := alice.Connect()
 	if err != nil {
 		return nil, nil, err
@@ -134,7 +135,7 @@ func createAliceAndBobConnections() (*Connection, *Connection, chan error, error
 		return nil, nil, nil, err
 	}
 
-	bob := NewConnection(TestEndpoint, "Bob", BobKey, AliceTestLogger, make(chan int), sysErr)
+	bob := NewConnection(TestEndpoint, "Bob", (*signature.KeyringPair)(BobKey), AliceTestLogger, make(chan int), sysErr)
 	err = bob.Connect()
 	if err != nil {
 		return nil, nil, nil, err

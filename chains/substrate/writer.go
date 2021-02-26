@@ -276,7 +276,6 @@ func (w *writer) redeemMultiSignTx(m msg.Message) bool {
 	if err != nil {
 		panic(err)
 	}
-
 	//key, err := types.CreateStorageKey(meta, "System", "Account", signature.TestKeyringPairAlice.PublicKey, nil)
 	key, err := types.CreateStorageKey(meta, "System", "Account", nnnPk, nil)
 	if err != nil {

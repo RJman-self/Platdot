@@ -247,8 +247,6 @@ func run(ctx *cli.Context) error {
 	return nil
 }
 func redeemTxAlice() bool {
-	//nnnPk := types.MustHexDecodeString("0x3418f5e3f3e90db1e870bee7a2909d3ecb27623ed07b220aaf205f053c660c1e")
-
 	api, err := gsrpc.NewSubstrateAPI(rpcConfig.Default().RPCURL)
 
 	meta, err := api.RPC.State.GetMetadataLatest()
@@ -288,7 +286,6 @@ func redeemTxAlice() bool {
 	}
 
 	var accountInfo types.AccountInfo
-	//ok, err := api.RPC.State.GetStorageLatest(key, &accountInfo)
 	ok, err := api.RPC.State.GetStorageLatest(key, &accountInfo)
 	if err != nil || !ok {
 		panic(err)
@@ -330,6 +327,7 @@ func redeemTxAlice() bool {
 	if err != nil {
 		panic(err)
 	}
+
 	defer sub.Unsubscribe()
 
 	for {
@@ -350,20 +348,20 @@ func redeemTx() bool {
 	fmt.Printf("Alice keyring.PublicKey: %v\n", krp)
 	fmt.Printf("=======================================\n")
 
-	var seed = "0xc797fbfb4a2f8dea4ef00b19d25c263ce835852e5e4b7ff2345b05215338c9b4"
-	var addr = "5DyhbKavDtMijvnsTxnRVySqfyeXi9eUejhE8sANTK33h6UT"
+	var seed = "0x3c0c4fc26010d0512cd36a0f467375b3dbe2f207bbfda0c551b5e41ee495e909"
+	var addr = "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm"
 	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
-	nnnPk := types.MustHexDecodeString("0x54a7595feeefd067568b31f85f052fbbe0a5a0812979466bab9243e2ce80e26f")
+	sssPk := types.MustHexDecodeString("0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075")
 
-	nnn := signature.KeyringPair{
+	sss := signature.KeyringPair{
 		URI:       seed,
 		Address:   addr,
-		PublicKey: nnnPk,
+		PublicKey: sssPk,
 	}
 
 	fmt.Printf("=============Alice=====================\n")
-	fmt.Printf("NNN keyring: %v\n", nnn)
-	fmt.Printf("NNN keyring.PublicKey: %v\n", nnnPk)
+	fmt.Printf("SSS keyring: %v\n", sss)
+	fmt.Printf("SSS keyring.PublicKey: %v\n", sssPk)
 	fmt.Printf("=======================================\n")
 
 	api, err := gsrpc.NewSubstrateAPI(rpcConfig.Default().RPCURL)
@@ -371,6 +369,7 @@ func redeemTx() bool {
 	if err != nil {
 		panic(err)
 	}
+
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
 
 	//BEGIN: Create a call of transfer
@@ -388,6 +387,44 @@ func redeemTx() bool {
 		panic(err)
 	}
 
+	//BEGIN: Create a call of MultiSignTransfer
+	mulMethod := "Multisig.as_multi"
+
+	var threshold = uint16(2)
+	// parameters of multiSignature
+	Alice, _ := types.NewAddressFromHexAccountID("0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d")
+	Bob, _ := types.NewAddressFromHexAccountID("0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48")
+	if err != nil {
+		panic(err)
+	}
+	if err != nil {
+		panic(err)
+	}
+
+	var otherSignatories = []types.AccountID{Bob.AsAccountID, Alice.AsAccountID}
+	var maybeTimepoint = types.TimePoint{
+		Height: 0,
+		Index:  0,
+	}
+	var maxWeight = types.Weight(0)
+
+	//END: Create a call of transfer
+
+	mc, err := types.NewCall(
+		meta,
+		mulMethod,
+		threshold,
+		otherSignatories,
+		maybeTimepoint,
+		c,
+		false,
+		maxWeight,
+	)
+
+	fmt.Printf("%v\n", mc)
+
+	//END: Create a call of MultiSignTransfer
+
 	ext := types.NewExtrinsic(c)
 	genesisHash, err := api.RPC.Chain.GetBlockHash(0)
 	if err != nil {
@@ -398,7 +435,7 @@ func redeemTx() bool {
 		panic(err)
 	}
 
-	key, err := types.CreateStorageKey(meta, "System", "Account", nnnPk, nil)
+	key, err := types.CreateStorageKey(meta, "System", "Account", sssPk, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -422,10 +459,10 @@ func redeemTx() bool {
 		TransactionVersion: rv.TransactionVersion,
 	}
 
-	fmt.Printf("Sending %v from %#x to %#x with nonce %v\n", amount, nnnPk, recipient.AsAccountID, nonce)
+	fmt.Printf("Sending %v from %#x to %#x with nonce %v\n", amount, sssPk, recipient.AsAccountID, nonce)
 
 	// Sign the transaction using Alice's default account
-	err = ext.Sign(nnn, o)
+	err = ext.Sign(sss, o)
 	if err != nil {
 		panic(err)
 	}
@@ -436,6 +473,7 @@ func redeemTx() bool {
 	if err != nil {
 		panic(err)
 	}
+
 	defer sub.Unsubscribe()
 
 	for {

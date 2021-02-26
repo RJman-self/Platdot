@@ -5,6 +5,7 @@ package e2e
 
 import (
 	"fmt"
+	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -230,7 +231,7 @@ func Test_ThreeRelayers(t *testing.T) {
 	// Setup test client connections for each chain
 	ethClientA := ethtest.NewClient(t, eth.EthAEndpoint, eth.AliceKp)
 	ethClientB := ethtest.NewClient(t, eth.EthBEndpoint, eth.AliceKp)
-	subClient := subtest.CreateClient(t, sub.AliceKp.AsKeyringPair(), sub.TestSubEndpoint)
+	subClient := subtest.CreateClient(t, (*signature.KeyringPair)(sub.AliceKp.AsKeyringPair()), sub.TestSubEndpoint)
 
 	// First lookup the substrate resource IDs
 	var rawRId types.Bytes32
