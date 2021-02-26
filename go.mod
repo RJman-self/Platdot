@@ -2,7 +2,7 @@ module github.com/ChainSafe/ChainBridge
 
 go 1.15
 
-replace github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0 => github.com/RJman-self/go-substrate-rpc-client/v2 v2.0.0-20210226110344-2bd3ea897827
+replace github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0 => github.com/RJman-self/go-substrate-rpc-client/v2 v2.1.1-0.20210226172133-97c90a065c8e
 
 require (
 	github.com/ChainSafe/chainbridge-substrate-events v0.0.0-20200715141113-87198532025e
