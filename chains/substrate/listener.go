@@ -18,8 +18,6 @@ import (
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
-	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
-	rpcConfig "github.com/centrifuge/go-substrate-rpc-client/v2/config"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 )
 
@@ -42,6 +40,10 @@ type listener struct {
 // Frequency of polling for a new block
 var BlockRetryInterval = time.Second * 5
 var BlockRetryLimit = 5
+var AKSM = "0x000000000000000000000000000000c76ebe4a02bbc34786d860b355f5a5ce00"
+var chainSub = 1
+var chainAlaya = 0
+var MultiSignAddress = "0xbc1d0c69609ecf7cf6513415502b96247cf1747bfde31427462b2406d2f13746"
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics) *listener {
 	return &listener{
@@ -110,19 +112,10 @@ var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
 func (l *listener) pollBlocks() error {
 	// assume TestKeyringPairBob.PublicKey is a multisign address
 
-	var multiSignPk, err = types.HexDecodeString("0x96255ecf5f66b58074da258ad20e6d74fedc900798687ff86547efe30ec2e7c6")
+	var multiSignPk, err = types.HexDecodeString(MultiSignAddress)
 	var multiSignAccount = types.NewAccountID(multiSignPk)
-	//TestKeyringPairBob.PublicKey
-	//var multiSignAddr = "16MoApHtxf63szJ2b7cQ8QzqpCSDiDJ8BKhkas2L37fkC6oU"
-	//var method = "Deposit(uint8,bytes32,uint64)"
-	// Query the system events and extract information from them. This example runs until exited via Ctrl-C
 
-	// Create our API with a default connection to the local node
-	api, err := gsrpc.NewSubstrateAPI(rpcConfig.Default().RPCURL)
-	if err != nil {
-		panic(err)
-	}
-	meta, err := api.RPC.State.GetMetadataLatest()
+	meta, err := l.conn.api.RPC.State.GetMetadataLatest()
 	if err != nil {
 		panic(err)
 	}
@@ -133,25 +126,26 @@ func (l *listener) pollBlocks() error {
 		panic(err)
 	}
 
-	sub, err := api.RPC.State.SubscribeStorageRaw([]types.StorageKey{key})
+	sub, err := l.conn.api.RPC.State.SubscribeStorageRaw([]types.StorageKey{key})
 	if err != nil {
 		panic(err)
 	}
+
 	defer sub.Unsubscribe()
 
 	// outer for loop for subscription notifications
 	for {
 		set := <-sub.Chan()
 		// inner loop for the changes within one of those notifications
-		for _, chng := range set.Changes {
-			if !types.Eq(chng.StorageKey, key) || !chng.HasStorageData {
+		for _, change := range set.Changes {
+			if !types.Eq(change.StorageKey, key) || !change.HasStorageData {
 				// skip, we are only interested in events with countent
 				continue
 			}
 
 			// Decode the event records
 			events := types.EventRecords{}
-			err = types.EventRecordsRaw(chng.StorageData).DecodeEventRecords(meta, &events)
+			err = types.EventRecordsRaw(change.StorageData).DecodeEventRecords(meta, &events)
 			if err != nil {
 				//panic(err)
 				fmt.Printf("\terr is %v\n", err)
@@ -164,16 +158,19 @@ func (l *listener) pollBlocks() error {
 				if e.To == multiSignAccount {
 					fmt.Printf("Succeed catch a tx to mulsigAddress\n")
 
-					var fromChianId = msg.ChainId(1)
-					var toChianId = msg.ChainId(0)
+					var fromChianId = msg.ChainId(chainSub)
+					var toChianId = msg.ChainId(chainAlaya)
 
 					//set parameters in manually
+					//TODO: Get data from Batch::Remark
 					recipient := types.NewAccountID(common.FromHex("0xff93B45308FD417dF303D6515aB04D9e89a750Ca"))
-					rId := msg.ResourceIdFromSlice(common.FromHex("0x000000000000000000000000000000c76ebe4a02bbc34786d860b355f5a5ce00"))
+
+					rId := msg.ResourceIdFromSlice(common.FromHex(AKSM))
 
 					fmt.Printf("before ++, depositNonce is %v\n", l.depositNonce[recipient])
+
+					//TODO:how to storage depositNonce
 					l.depositNonce[recipient]++
-					fmt.Printf("this time,depositNonce is %v\n", l.depositNonce[recipient])
 
 					//TODO: update msg.Nonce
 					m := msg.NewFungibleTransfer(
@@ -184,6 +181,7 @@ func (l *listener) pollBlocks() error {
 						rId,
 						recipient[:],
 					)
+
 					l.submitMessage(m, err)
 				}
 			}
@@ -191,43 +189,15 @@ func (l *listener) pollBlocks() error {
 				fmt.Printf("\tBalances:Deposit:: (phase=%#v)\n", e.Phase)
 				fmt.Printf("\t\t%v, %v\n", e.Who, e.Balance)
 			}
-			for _, e := range events.Grandpa_NewAuthorities {
-				fmt.Printf("\tGrandpa:NewAuthorities:: (phase=%#v)\n", e.Phase)
-				fmt.Printf("\t\t%v\n", e.NewAuthorities)
-			}
-			for _, e := range events.Grandpa_Paused {
-				fmt.Printf("\tGrandpa:Paused:: (phase=%#v)\n", e.Phase)
-			}
-			for _, e := range events.Grandpa_Resumed {
-				fmt.Printf("\tGrandpa:Resumed:: (phase=%#v)\n", e.Phase)
-			}
-			for _, e := range events.ImOnline_HeartbeatReceived {
-				fmt.Printf("\tImOnline:HeartbeatReceived:: (phase=%#v)\n", e.Phase)
-				fmt.Printf("\t\t%#x\n", e.AuthorityID)
-			}
-			for _, e := range events.Offences_Offence {
-				fmt.Printf("\tOffences:Offence:: (phase=%#v)\n", e.Phase)
-				fmt.Printf("\t\t%v%v\n", e.Kind, e.OpaqueTimeSlot)
-			}
-			for _, e := range events.Session_NewSession {
-				fmt.Printf("\tSession:NewSession:: (phase=%#v)\n", e.Phase)
-				fmt.Printf("\t\t%v\n", e.SessionIndex)
-			}
-			for _, e := range events.Staking_OldSlashingReportDiscarded {
-				fmt.Printf("\tStaking:OldSlashingReportDiscarded:: (phase=%#v)\n", e.Phase)
-				fmt.Printf("\t\t%v\n", e.SessionIndex)
-			}
-			for _, e := range events.Staking_Slash {
-				fmt.Printf("\tStaking:Slash:: (phase=%#v)\n", e.Phase)
-				fmt.Printf("\t\t%#x%v\n", e.AccountID, e.Balance)
-			}
+
 			//for _, e := range events.System_ExtrinsicSuccess {
 			//	fmt.Printf("\tSystem:ExtrinsicSuccess:: (phase=%#v)\n", e.Phase)
 			//}
-			for _, e := range events.System_ExtrinsicFailed {
-				fmt.Printf("\tSystem:ErtrinsicFailed:: (phase=%#v)\n", e.Phase)
-				fmt.Printf("\t\t%v\n", e.DispatchError)
-			}
+			//for _, e := range events.System_ExtrinsicFailed {
+			//	fmt.Printf("\tSystem:ErtrinsicFailed:: (phase=%#v)\n", e.Phase)
+			//	fmt.Printf("\t\t%v\n", e.DispatchError)
+			//}
+
 			for _, e := range events.Multisig_NewMultisig {
 				fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
 				fmt.Printf("\t\tFrom:%v,To: %v\n", e.Who, e.ID)
@@ -241,6 +211,10 @@ func (l *listener) pollBlocks() error {
 			}
 			for _, e := range events.Multisig_MultisigCancelled {
 				fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
+			}
+			for _, e := range events.Utility_BatchCompleted {
+				fmt.Printf("\tSystem:detect new cross-chain transfer request:: (phase=%#v)\n", e.Topics)
+				fmt.Printf("\tSystem:detect new cross-chain transfer request:: (phase=%#v)\n", e.Phase)
 			}
 		}
 	}

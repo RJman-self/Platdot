@@ -239,7 +239,7 @@ func run(ctx *cli.Context) error {
 	}
 
 	go func() {
-		redeemTx_Alice()
+		//redeemTx_Alice()
 		//redeem()
 		//redeemTx()
 	}()
@@ -709,6 +709,7 @@ func redeemTx_Alice() bool {
 		false,
 		maxWeight,
 	)
+
 	fmt.Printf("time: %v\n", maybeTimepoint)
 	fmt.Printf("time: %v\n", timePointHash)
 	fmt.Printf("%v\n", mc)
