@@ -24,8 +24,6 @@ github.com/ChainSafe/log15 v1.0.0 h1:vRDVtWtVwIH5uSCBvgTTZh6FA58UBJ6+QiiypaZfBf8
 github.com/ChainSafe/log15 v1.0.0/go.mod h1:5v1+ALHtdW0NfAeeoYyKmzCAMcAeqkdhIg4uxXWIgOg=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
 github.com/OneOfOne/xxhash v1.2.5/go.mod h1:eZbhyaAYD41SGSSsnmcpxVoRiQ/MPUTjUdIIOT9Um7Q=
-github.com/RJman-self/go-substrate-rpc-client/v2 v2.1.1-0.20210226164924-0e4c3cefbc85 h1:2DerLAJm4lAlRhGJlQmX7of8WZPqb3E1y6H+D9vQaRI=
-github.com/RJman-self/go-substrate-rpc-client/v2 v2.1.1-0.20210226164924-0e4c3cefbc85/go.mod h1:FvTQxAPFHIgGYsmNciyw8cddwV+KzmIUJNti0VR9+P4=
 github.com/RJman-self/go-substrate-rpc-client/v2 v2.1.1-0.20210226172133-97c90a065c8e h1:doDqwMX0M7a7udab7rEWDY8ZpPoR2GBDk+Yo8kRW8x4=
 github.com/RJman-self/go-substrate-rpc-client/v2 v2.1.1-0.20210226172133-97c90a065c8e/go.mod h1:FvTQxAPFHIgGYsmNciyw8cddwV+KzmIUJNti0VR9+P4=
 github.com/Shopify/sarama v1.26.1/go.mod h1:NbSGBSSndYaIhRcBtY9V0U7AyH+x71bG668AuWys/yU=
@@ -74,6 +72,7 @@ github.com/centrifuge/go-substrate-rpc-client v2.0.0-alpha.3+incompatible h1:d8h
 github.com/centrifuge/go-substrate-rpc-client v2.0.0-alpha.3+incompatible/go.mod h1:GBMLH8MQs5g4FcrytcMm9uRgBnTL1LIkNTue6lUPhZU=
 github.com/centrifuge/go-substrate-rpc-client v2.0.0-alpha.5+incompatible h1:QzFk38HaqnzjQ6DHra5WxcTf+KxbB0Hitg+72LEPVJI=
 github.com/centrifuge/go-substrate-rpc-client v2.0.0-alpha.5+incompatible/go.mod h1:GBMLH8MQs5g4FcrytcMm9uRgBnTL1LIkNTue6lUPhZU=
+github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0 h1:3hwrAiOiuWiI2VicmIMl9VlXH14L9+zAXNsv8T8mTJc=
 github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0/go.mod h1:FvTQxAPFHIgGYsmNciyw8cddwV+KzmIUJNti0VR9+P4=
 github.com/cespare/cp v0.1.0 h1:SE+dxFebS7Iik5LK0tsi1k9ZCxEaFX4AjQmoyA+1dJk=
 github.com/cespare/cp v0.1.0/go.mod h1:SOGHArjBr4JWaSDEVpWpo/hNg6RoKrls6Oh40hiwW+s=

@@ -240,7 +240,6 @@ func run(ctx *cli.Context) error {
 		//redeemTxAlice()
 		//redeem()
 		redeemTx()
-		//redeemMultiSignTx()
 	}()
 
 	c.Start()
@@ -249,11 +248,11 @@ func run(ctx *cli.Context) error {
 }
 func redeemTxAlice() bool {
 	api, err := gsrpc.NewSubstrateAPI(rpcConfig.Default().RPCURL)
-
 	meta, err := api.RPC.State.GetMetadataLatest()
 	if err != nil {
 		panic(err)
 	}
+
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
 
 	//BEGIN: Create a call of transfer
@@ -276,6 +275,7 @@ func redeemTxAlice() bool {
 	if err != nil {
 		panic(err)
 	}
+
 	rv, err := api.RPC.State.GetRuntimeVersionLatest()
 	if err != nil {
 		panic(err)
@@ -342,10 +342,10 @@ func redeemTxAlice() bool {
 }
 
 func redeem() bool {
-	var seed = "0x446aa9e090f4121edaea340780896fd1e5a18fb95e8a7f15b924a3eb31d4430f"
-	var addr = "5GHMNem8jiut81Ay1pxAdpu32n2xFdVpNo8VtBNrtP2KWvNX"
+	var seed = "0x3c0c4fc26010d0512cd36a0f467375b3dbe2f207bbfda0c551b5e41ee495e909"
+	var addr = "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm"
 	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
-	sssPk := types.MustHexDecodeString("0xba962c06ab24c8a6d169934352584e45f0cc66f768e4b5d51371260c8369fa1a")
+	sssPk := types.MustHexDecodeString("0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075")
 	sss := signature.KeyringPair{
 		URI:       seed,
 		Address:   addr,
@@ -382,6 +382,7 @@ func redeem() bool {
 	if err != nil {
 		panic(err)
 	}
+
 	rv, err := api.RPC.State.GetRuntimeVersionLatest()
 	if err != nil {
 		panic(err)
@@ -446,11 +447,10 @@ func redeemTx() bool {
 	fmt.Printf("Alice keyring.PublicKey: %v\n", krp)
 	fmt.Printf("=======================================\n")
 
-	var seed = "0x446aa9e090f4121edaea340780896fd1e5a18fb95e8a7f15b924a3eb31d4430f"
-	var addr = "5GHMNem8jiut81Ay1pxAdpu32n2xFdVpNo8VtBNrtP2KWvNX"
+	var seed = "0x3c0c4fc26010d0512cd36a0f467375b3dbe2f207bbfda0c551b5e41ee495e909"
+	var addr = "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm"
 	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
-	sssPk := types.MustHexDecodeString("0xba962c06ab24c8a6d169934352584e45f0cc66f768e4b5d51371260c8369fa1a")
-
+	sssPk := types.MustHexDecodeString("0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075")
 	sss := signature.KeyringPair{
 		URI:       seed,
 		Address:   addr,
@@ -471,9 +471,9 @@ func redeemTx() bool {
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
 
 	//BEGIN: Create a call of transfer
-	method := "Balances.transfer"
+	method := "Balances.transfer_keep_alive"
 	recipient, _ := types.NewAddressFromHexAccountID("0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c")
-	amount := types.NewUCompactFromUInt(1000000000000)
+	amount := types.NewUCompactFromUInt(1000000000000000)
 
 	c, err := types.NewCall(
 		meta,
@@ -492,20 +492,16 @@ func redeemTx() bool {
 	// parameters of multiSignature
 	Alice, _ := types.NewAddressFromHexAccountID("0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d")
 	Bob, _ := types.NewAddressFromHexAccountID("0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48")
-
-	if err != nil {
-		panic(err)
-	}
 	if err != nil {
 		panic(err)
 	}
 
 	var otherSignatories = []types.AccountID{Bob.AsAccountID, Alice.AsAccountID}
 	var maybeTimepoint = types.TimePoint{
-		Height: 743,
+		Height: 305,
 		Index:  1,
 	}
-	var maxWeight = types.Weight(222521000)
+	var maxWeight = types.Weight(161397000)
 
 	//END: Create a call of transfer
 
@@ -523,14 +519,12 @@ func redeemTx() bool {
 	fmt.Printf("%v\n", mc)
 
 	//END: Create a call of MultiSignTransfer
-
-	//ext := types.NewExtrinsic(mc)
-
-	ext := types.Extrinsic{
-		Version:   types.ExtrinsicVersion4,
-		Signature: types.ExtrinsicSignatureV4{Signer: types.Address{}},
-		Method:    c,
-	}
+	ext := types.NewExtrinsic(mc)
+	//ext := types.Extrinsic{
+	//	Version:   types.ExtrinsicVersion4,
+	//	Signature: types.ExtrinsicSignatureV4{Signer: types.MultiAddress{}},
+	//	Method:    mc,
+	//}
 
 	genesisHash, err := api.RPC.Chain.GetBlockHash(0)
 	if err != nil {
@@ -568,8 +562,8 @@ func redeemTx() bool {
 	fmt.Printf("Sending %v from %#x to %#x with nonce %v\n", amount, sssPk, recipient.AsAccountID, nonce)
 
 	// Sign the transaction using Alice's default account
-	//err = ext.MultiSign(sss, o)
-	err = ext.Sign(sss, o)
+	//err = ext.Sign(sss, o)
+	err = ext.MultiSign(sss, o)
 	if err != nil {
 		panic(err)
 	}
@@ -588,108 +582,6 @@ func redeemTx() bool {
 		//fmt.Printf("Transaction status: %#v\n", status)
 
 		if status.IsFinalized {
-			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
-		}
-	}
-}
-
-func redeemMultiSignTx() bool {
-	nnnPk := types.MustHexDecodeString("0x3418f5e3f3e90db1e870bee7a2909d3ecb27623ed07b220aaf205f053c660c1e")
-
-	api, err := gsrpc.NewSubstrateAPI(rpcConfig.Default().RPCURL)
-	if err != nil {
-		panic(err)
-	}
-
-	meta, err := api.RPC.State.GetMetadataLatest()
-	if err != nil {
-		panic(err)
-	}
-
-	//serialize signature data
-	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
-
-	//BEGIN: Create a call of transfer
-	method := "Balances.transfer"
-	recipient := types.NewAddressFromAccountID([]byte("5HGjWAeFDfFCWPsjFQdVV2Msvz2XtMktvgocEZcCj68kUMaw"))
-	amount := types.NewUCompactFromUInt(1000)
-
-	c, err := types.NewCall(
-		meta,
-		method,
-		recipient,
-		amount,
-	)
-	if err != nil {
-		panic(err)
-	}
-
-	ext := types.NewExtrinsic(c)
-
-	genesisHash, err := api.RPC.Chain.GetBlockHash(0)
-	if err != nil {
-		panic(err)
-	}
-	rv, err := api.RPC.State.GetRuntimeVersionLatest()
-	if err != nil {
-		panic(err)
-	}
-
-	//key, err := types.CreateStorageKey(meta, "System", "Account", signature.TestKeyringPairAlice.PublicKey, nil)
-	key, err := types.CreateStorageKey(meta, "System", "Account", nnnPk, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	var accountInfo types.AccountInfo
-	ok, err := api.RPC.State.GetStorageLatest(key, &accountInfo)
-	if err != nil || !ok {
-		panic(err)
-	}
-
-	nonce := uint32(accountInfo.Nonce)
-
-	o := types.SignatureOptions{
-		BlockHash:          genesisHash,
-		Era:                types.ExtrinsicEra{IsMortalEra: false},
-		GenesisHash:        genesisHash,
-		Nonce:              types.NewUCompactFromUInt(uint64(nonce)),
-		SpecVersion:        rv.SpecVersion,
-		Tip:                types.NewUCompactFromUInt(0),
-		TransactionVersion: rv.TransactionVersion,
-	}
-
-	fmt.Printf("===================================================================================")
-	fmt.Printf("Multisign: Sending %v from %#x to %#x with nonce %v", amount, nnnPk, recipient.AsAccountID, nonce)
-	fmt.Printf("===================================================================================")
-
-	var seed = "0x294068dcf6f88d2ecad225c55560417cd93bbf78b551026495294575d6267fc7"
-	var addr = "5DF1m9a6vQwyoyrzj8JMwM1bVrwBRKXhnVP28eH95b7BhX7W"
-	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
-
-	nnn := signature.KeyringPair{
-		URI:       seed,
-		Address:   addr,
-		PublicKey: nnnPk,
-	}
-
-	err = ext.Sign(nnn, o)
-	if err != nil {
-		panic(err)
-	}
-
-	sub, err := api.RPC.Author.SubmitAndWatchExtrinsic(ext)
-	if err != nil {
-		panic(err)
-	}
-	defer sub.Unsubscribe()
-
-	for {
-		status := <-sub.Chan()
-		fmt.Printf("Transaction status: %#v\n", status)
-
-		if status.IsFinalized {
-			//w.conn.api.
 			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
 		}
 	}
