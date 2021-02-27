@@ -471,19 +471,19 @@ func redeemTx() bool {
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
 
 	//BEGIN: Create a call of transfer
-	method := "Balances.transfer_keep_alive"
+	//method := "Balances.transfer_keep_alive"
 	recipient, _ := types.NewAddressFromHexAccountID("0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c")
 	amount := types.NewUCompactFromUInt(1000000000000000)
 
-	c, err := types.NewCall(
-		meta,
-		method,
-		recipient,
-		amount,
-	)
-	if err != nil {
-		panic(err)
-	}
+	//c, err := types.NewCall(
+	//	meta,
+	//	method,
+	//	recipient,
+	//	amount,
+	//)
+	//if err != nil {
+	//	panic(err)
+	//}
 
 	//BEGIN: Create a call of MultiSignTransfer
 	mulMethod := "Multisig.as_multi"
@@ -497,11 +497,20 @@ func redeemTx() bool {
 	}
 
 	var otherSignatories = []types.AccountID{Bob.AsAccountID, Alice.AsAccountID}
-	var maybeTimepoint = types.TimePoint{
-		Height: 305,
-		Index:  1,
-	}
-	var maxWeight = types.Weight(161397000)
+
+	//type TimePointU64 struct {
+	//	Height uint64
+	//	Index types.U32
+	//}
+
+	//var maybeTimepointU64 = TimePointU64{
+	//	Height: uint64(210),
+	//	Index:  types.U32(1),
+	//}
+
+	var maybeTimepoint = []byte{}
+
+	var maxWeight = types.Weight(222521000)
 
 	//END: Create a call of transfer
 
@@ -511,7 +520,7 @@ func redeemTx() bool {
 		threshold,
 		otherSignatories,
 		maybeTimepoint,
-		c,
+		[]byte{},
 		false,
 		maxWeight,
 	)
