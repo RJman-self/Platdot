@@ -6,7 +6,6 @@ package substrate
 import (
 	"errors"
 	"fmt"
-
 	"github.com/ethereum/go-ethereum/common"
 
 	"math/big"
@@ -110,6 +109,7 @@ var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
 // a block will be retried up to BlockRetryLimit times before returning with an error.
 
 func (l *listener) pollBlocks() error {
+	var currentBlock = l.startBlock
 	// assume TestKeyringPairBob.PublicKey is a multisign address
 
 	var multiSignPk, err = types.HexDecodeString(MultiSignAddress)
@@ -130,91 +130,167 @@ func (l *listener) pollBlocks() error {
 	if err != nil {
 		panic(err)
 	}
-
 	defer sub.Unsubscribe()
 
-	// outer for loop for subscription notifications
+	var count = 0
 	for {
-		set := <-sub.Chan()
-		// inner loop for the changes within one of those notifications
-		for _, change := range set.Changes {
-			if !types.Eq(change.StorageKey, key) || !change.HasStorageData {
-				// skip, we are only interested in events with countent
+		select {
+		case <-l.stop:
+			return errors.New("terminated")
+		default:
+			count += 1
+			fmt.Printf("count = %d\n", count)
+			// Get finalized block hash
+			finalizedHash, err := l.conn.api.RPC.Chain.GetFinalizedHead()
+			if err != nil {
+				l.log.Error("Failed to fetch finalized hash", "err", err)
+				time.Sleep(BlockRetryInterval)
+				continue
+			}
+			// Get finalized block header
+			finalizedHeader, err := l.conn.api.RPC.Chain.GetHeader(finalizedHash)
+			if err != nil {
+				l.log.Error("Failed to fetch finalized header", "err", err)
+				time.Sleep(BlockRetryInterval)
+				continue
+			}
+			if l.metrics != nil {
+				l.metrics.LatestKnownBlock.Set(float64(finalizedHeader.Number))
+			}
+			hash, err := l.conn.api.RPC.Chain.GetBlockHash(currentBlock)
+			if err != nil && err.Error() == ErrBlockNotReady.Error() {
+				time.Sleep(BlockRetryInterval)
+				continue
+			} else if err != nil {
+				l.log.Error("Failed to query latest block", "block", currentBlock, "err", err)
+				time.Sleep(BlockRetryInterval)
 				continue
 			}
 
-			// Decode the event records
-			events := types.EventRecords{}
-			err = types.EventRecordsRaw(change.StorageData).DecodeEventRecords(meta, &events)
+			block, err := l.conn.api.RPC.Chain.GetBlock(hash)
 			if err != nil {
-				//panic(err)
-				fmt.Printf("\terr is %v\n", err)
+				panic(err)
 			}
 
-			// Show what we are busy with
-			for _, e := range events.Balances_Transfer {
-				fmt.Printf("\tBalances:Transfer:: (phase=%#v)\n", e.Phase)
-				fmt.Printf("\t\t%v, %v, %v\n", e.From, e.To, e.Value)
-				if e.To == multiSignAccount {
-					fmt.Printf("Succeed catch a tx to mulsigAddress\n")
+			fmt.Printf("block# %f\n", float64(block.Block.Header.Number))
 
-					var fromChianId = msg.ChainId(chainSub)
-					var toChianId = msg.ChainId(chainAlaya)
+			//blockFinalize, err := l.conn.api.RPC.Chain.SubscribeFinalizedHeads()
+			//fmt.Printf("block:\n%v\n", blockFinalize)
 
-					//set parameters in manually
-					//TODO: Get data from Batch::Remark
-					recipient := types.NewAccountID(common.FromHex("0xff93B45308FD417dF303D6515aB04D9e89a750Ca"))
+			//block, _ := l.conn.api.RPC.Chain.GetBlockLatest()
 
-					rId := msg.ResourceIdFromSlice(common.FromHex(AKSM))
+			//fmt.Printf("block:\n%v\n", block)
+			//number, _ := strconv.ParseInt(utils.RemoveHex0x(block.Block.Header.Number), 16, 64)
+			// Extrinsics in the block
 
-					fmt.Printf("before ++, depositNonce is %v\n", l.depositNonce[recipient])
+			//fmt.Printf("\tYes! Found %d extrinsic(s) in this block.\n", len(block.Block.Extrinsics))
+			var extrinsics = block.Block.Extrinsics
 
-					//TODO:how to storage depositNonce
-					l.depositNonce[recipient]++
+			for _, extrinsic := range extrinsics {
+				//extrinsic.Decode()
+				fmt.Printf("extrinsic MethodIndex is %d, extrinsic sectionIndex is %d\n",
+					extrinsic.Method.CallIndex.MethodIndex, extrinsic.Method.CallIndex.SectionIndex)
+			}
 
-					//TODO: update msg.Nonce
-					m := msg.NewFungibleTransfer(
-						fromChianId, // Unset
-						toChianId,
-						msg.Nonce(l.depositNonce[recipient]),
-						big.NewInt(123),
-						rId,
-						recipient[:],
-					)
+			// Write to blockstore
+			err = l.blockstore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
+			if err != nil {
+				l.log.Error("Failed to write to blockstore", "err", err)
+			}
 
-					l.submitMessage(m, err)
+			if l.metrics != nil {
+				l.metrics.BlocksProcessed.Inc()
+				l.metrics.LatestProcessedBlock.Set(float64(currentBlock))
+			}
+
+			currentBlock++
+			l.latestBlock.Height = big.NewInt(0).SetUint64(currentBlock)
+			l.latestBlock.LastUpdated = time.Now()
+
+			//header, err := l.conn.api.RPC.Chain.SubscribeNewHeads()
+			//fmt.Printf("header:\n%v\n", header)
+
+			set := <-sub.Chan()
+			// inner loop for the changes within one of those notifications
+			for _, change := range set.Changes {
+				if !types.Eq(change.StorageKey, key) || !change.HasStorageData {
+					// skip, we are only interested in events with countent
+					continue
 				}
-			}
-			for _, e := range events.Balances_Deposit {
-				fmt.Printf("\tBalances:Deposit:: (phase=%#v)\n", e.Phase)
-				fmt.Printf("\t\t%v, %v\n", e.Who, e.Balance)
-			}
 
-			//for _, e := range events.System_ExtrinsicSuccess {
-			//	fmt.Printf("\tSystem:ExtrinsicSuccess:: (phase=%#v)\n", e.Phase)
-			//}
-			//for _, e := range events.System_ExtrinsicFailed {
-			//	fmt.Printf("\tSystem:ErtrinsicFailed:: (phase=%#v)\n", e.Phase)
-			//	fmt.Printf("\t\t%v\n", e.DispatchError)
-			//}
+				// Decode the event records
+				events := types.EventRecords{}
+				err = types.EventRecordsRaw(change.StorageData).DecodeEventRecords(meta, &events)
+				if err != nil {
+					//panic(err)
+					fmt.Printf("\terr is %v\n", err)
+				}
 
-			for _, e := range events.Multisig_NewMultisig {
-				fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
-				fmt.Printf("\t\tFrom:%v,To: %v\n", e.Who, e.ID)
-			}
-			for _, e := range events.Multisig_MultisigApproval {
-				fmt.Printf("\tSystem:detect new multisign approval:: (phase=%#v)\n", e.Phase)
-			}
-			for _, e := range events.Multisig_MultisigExecuted {
-				fmt.Printf("\tSystem:detect new multisign Executed:: (phase=%#v)\n", e.Phase)
-				fmt.Printf("\t\tFrom:%v,To: %v\n", e.Who, e.ID)
-			}
-			for _, e := range events.Multisig_MultisigCancelled {
-				fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
-			}
-			for _, e := range events.Utility_BatchCompleted {
-				fmt.Printf("\tSystem:detect new cross-chain transfer request:: (phase=%#v)\n", e.Topics)
-				fmt.Printf("\tSystem:detect new cross-chain transfer request:: (phase=%#v)\n", e.Phase)
+				// Show what we are busy with
+				for _, e := range events.Balances_Transfer {
+					fmt.Printf("\tBalances:Transfer:: (phase = %v)\n", e.Phase)
+					fmt.Printf("\t\t%v, %v, %v\n", e.From, e.To, e.Value)
+					if e.To == multiSignAccount {
+						fmt.Printf("Succeed catch a tx to mulsigAddress\n")
+
+						var fromChianId = msg.ChainId(chainSub)
+						var toChianId = msg.ChainId(chainAlaya)
+
+						//set parameters in manually
+						//TODO: Get data from Batch::Remark
+						recipient := types.NewAccountID(common.FromHex("0xff93B45308FD417dF303D6515aB04D9e89a750Ca"))
+
+						rId := msg.ResourceIdFromSlice(common.FromHex(AKSM))
+
+						fmt.Printf("before ++, depositNonce is %#v\n", l.depositNonce[recipient])
+
+						//TODO:how to storage depositNonce
+						l.depositNonce[recipient]++
+
+						//TODO: update msg.Nonce
+						m := msg.NewFungibleTransfer(
+							fromChianId, // Unset
+							toChianId,
+							msg.Nonce(l.depositNonce[recipient]),
+							big.NewInt(123),
+							rId,
+							recipient[:],
+						)
+
+						l.submitMessage(m, err)
+					}
+				}
+				for _, e := range events.Balances_Deposit {
+					fmt.Printf("\tBalances:Deposit:: (phase=%#v)\n", e.Phase)
+					fmt.Printf("\t\t%v, %v\n", e.Who, e.Balance)
+				}
+
+				//for _, e := range events.System_ExtrinsicSuccess {
+				//	fmt.Printf("\tSystem:ExtrinsicSuccess:: (phase=%#v)\n", e.Phase)
+				//}
+				//for _, e := range events.System_ExtrinsicFailed {
+				//	fmt.Printf("\tSystem:ErtrinsicFailed:: (phase=%#v)\n", e.Phase)
+				//	fmt.Printf("\t\t%v\n", e.DispatchError)
+				//}
+
+				for _, e := range events.Multisig_NewMultisig {
+					fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
+					fmt.Printf("\t\tFrom:%v,To: %v\n", e.Who, e.ID)
+				}
+				for _, e := range events.Multisig_MultisigApproval {
+					fmt.Printf("\tSystem:detect new multisign approval:: (phase=%#v)\n", e.Phase)
+				}
+				for _, e := range events.Multisig_MultisigExecuted {
+					fmt.Printf("\tSystem:detect new multisign Executed:: (phase=%#v)\n", e.Phase)
+					fmt.Printf("\t\tFrom:%v,To: %v\n", e.Who, e.ID)
+				}
+				for _, e := range events.Multisig_MultisigCancelled {
+					fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
+				}
+				for _, e := range events.Utility_BatchCompleted {
+					fmt.Printf("\tSystem:detect new cross-chain transfer request:: (phase=%#v)\n", e.Topics)
+					fmt.Printf("\tSystem:detect new cross-chain transfer request:: (phase=%#v)\n", e.Phase)
+				}
 			}
 		}
 	}
