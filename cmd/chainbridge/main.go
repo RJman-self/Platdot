@@ -3,7 +3,7 @@
 /*
 Provides the command-line interface for the chainbridge application.
 
-For configuration and CLI commands see the README: https://github.com/ChainSafe/ChainBridge.
+For configuration and CLI commands see the README: https://github.com/rjman-self/Platdot.
 */
 package main
 
@@ -11,25 +11,25 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/ChainSafe/ChainBridge/chains/ethereum"
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
 	rpcConfig "github.com/centrifuge/go-substrate-rpc-client/v2/config"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+	"github.com/rjman-self/Platdot/chains/ethereum"
 	"net/http"
 	"os"
 
 	"strconv"
 
-	"github.com/ChainSafe/ChainBridge/chains/substrate"
-	"github.com/ChainSafe/ChainBridge/config"
 	"github.com/ChainSafe/chainbridge-utils/core"
 	"github.com/ChainSafe/chainbridge-utils/metrics/health"
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	log "github.com/ChainSafe/log15"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rjman-self/Platdot/chains/substrate"
+	"github.com/rjman-self/Platdot/config"
 	"github.com/urfave/cli/v2"
 )
 
@@ -241,7 +241,8 @@ func run(ctx *cli.Context) error {
 	go func() {
 		//redeemTx_Alice()
 		//redeem()
-		redeemTx()
+		//redeemTx()
+		redeemTx_Utility()
 	}()
 
 	c.Start()
@@ -518,14 +519,14 @@ func redeemTx() bool {
 
 	var otherSignatories = []types.AccountID{Bob.AsAccountID, Alice.AsAccountID}
 
-	type TimePointU64 struct {
+	type TimePointSafe32 struct {
 		Height types.OptionU32
 		Index  types.U32
 	}
 
-	var value = types.NewOptionU32(67)
+	var value = types.NewOptionU32(15)
 
-	var maybeTimepoint = TimePointU64{
+	var maybeTimepoint = TimePointSafe32{
 		Height: value,
 		Index:  1,
 	}
@@ -762,6 +763,168 @@ func redeemTx_Alice() bool {
 		panic(err)
 	}
 	fmt.Printf("Signed_ext = %v\n", ext)
+
+	// Do the transfer and track the actual status
+	//sub, err := api.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	sub, err := api.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	if err != nil {
+		panic(err)
+	}
+
+	defer sub.Unsubscribe()
+
+	for {
+		status := <-sub.Chan()
+		//fmt.Printf("Transaction status: %#v\n", status)
+
+		if status.IsFinalized {
+			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
+		}
+	}
+}
+
+func redeemTx_Utility() bool {
+	kr := signature.TestKeyringPairAlice
+	krp := signature.TestKeyringPairAlice.PublicKey
+	fmt.Printf("=============Alice=====================\n")
+	fmt.Printf("Alice keyring: %v\n", kr)
+	fmt.Printf("Alice keyring.PublicKey: %v\n", krp)
+	fmt.Printf("=======================================\n")
+
+	api, err := gsrpc.NewSubstrateAPI(rpcConfig.Default().RPCURL)
+	meta, err := api.RPC.State.GetMetadataLatest()
+	if err != nil {
+		panic(err)
+	}
+
+	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
+
+	//BEGIN: Create a call of transfer
+	method1 := "Balances.transfer_keep_alive"
+	recipient, _ := types.NewMultiAddressFromHexAccountID("0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c")
+	//recipientAddress, _ := types.NewAddressFromHexAccountID("0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c")
+	//var accountId = recipientAddress.AsAccountID
+	//fmt.Printf("AccountId = %v\n", accountId)
+	//recipient := types.NewMultiAddressFromAccountID()
+
+	//types.NewMultiAddressFromHexAccountID()
+	//types.NewMultiAddressFromAccountID()
+
+	amount := types.NewUCompactFromUInt(1000000000000000)
+
+	c1, err := types.NewCall(
+		meta,
+		method1,
+		recipient,
+		amount,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	var buffer1 = bytes.Buffer{}
+	encoderGoRPC := scale.NewEncoder(&buffer1)
+	_ = encoderGoRPC.Encode(c1)
+	callHash := buffer1.Bytes()
+
+	fmt.Printf("====================================\n")
+	fmt.Printf("c = %v\n", c1)
+	fmt.Printf("c_hash = %v\n", callHash)
+	fmt.Printf("====================================\n")
+
+	method2 := "System.remark"
+	remark := []byte("666666")
+
+	c2, err := types.NewCall(
+		meta,
+		method2,
+		remark,
+	)
+	if err != nil {
+		panic(err)
+	}
+
+	var buffer2 = bytes.Buffer{}
+	encoder2 := scale.NewEncoder(&buffer2)
+	_ = encoder2.Encode(c2)
+	callHash2 := buffer2.Bytes()
+	//
+	//var buffer3 = bytes.Buffer{}
+	//decoder2 := scale.NewDecoder(&buffer3)
+	//_ = decoder2.Decode(callHash2)
+	//deCall2 := buffer3.Bytes()
+
+	fmt.Printf("====================================\n")
+	fmt.Printf("c2 = %v\n", c2)
+	fmt.Printf("c_hash = %v\n", callHash2)
+	fmt.Printf("====================================\n")
+
+	//BEGIN: Create a call of MultiSignTransfer
+	batchMethod := "Utility.batch"
+
+	var calls = []types.Call{c1, c2}
+
+	//END: Create a call of transfer
+
+	uc, err := types.NewCall(
+		meta,
+		batchMethod,
+		calls,
+	)
+	fmt.Printf("mc = %v\n", uc)
+
+	//END: Create a call of MultiSignTransfer
+	ext := types.NewExtrinsic(uc)
+	//ext := types.Extrinsic{
+	//	Version:   types.ExtrinsicVersion4,
+	//	Signature: types.ExtrinsicSignatureV4{Signer: types.MultiAddress{}},
+	//	Method:    mc,
+	//}
+
+	genesisHash, err := api.RPC.Chain.GetBlockHash(0)
+	if err != nil {
+		panic(err)
+	}
+
+	rv, err := api.RPC.State.GetRuntimeVersionLatest()
+	if err != nil {
+		panic(err)
+	}
+
+	key, err := types.CreateStorageKey(meta, "System", "Account", signature.TestKeyringPairAlice.PublicKey, nil)
+	if err != nil {
+		panic(err)
+	}
+
+	var accountInfo types.AccountInfo
+	//ok, err := api.RPC.State.GetStorageLatest(key, &accountInfo)
+	ok, err := api.RPC.State.GetStorageLatest(key, &accountInfo)
+	if err != nil || !ok {
+		panic(err)
+	}
+
+	nonce := uint32(accountInfo.Nonce)
+
+	o := types.SignatureOptions{
+		BlockHash:          genesisHash,
+		Era:                types.ExtrinsicEra{IsMortalEra: false},
+		GenesisHash:        genesisHash,
+		Nonce:              types.NewUCompactFromUInt(uint64(nonce)),
+		SpecVersion:        rv.SpecVersion,
+		Tip:                types.NewUCompactFromUInt(0),
+		TransactionVersion: rv.TransactionVersion,
+	}
+
+	//fmt.Printf("Sending %v from %#x to %#x with nonce %v\n", amount, sssPk, recipient.AsAccountID, nonce)
+
+	// Sign the transaction using Alice's default account
+	//err = ext.Sign(sss, o)
+	//fmt.Printf("ext = %v\n", ext)
+	err = ext.MultiSign(signature.TestKeyringPairAlice, o)
+	if err != nil {
+		panic(err)
+	}
+	//fmt.Printf("Signed_ext = %v\n", ext)
 
 	// Do the transfer and track the actual status
 	//sub, err := api.RPC.Author.SubmitAndWatchExtrinsic(ext)

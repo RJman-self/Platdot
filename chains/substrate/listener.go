@@ -11,18 +11,19 @@ import (
 	gsrpc "github.com/rjmand/go-substrate-rpc-client/v2"
 	"github.com/rjmand/go-substrate-rpc-client/v2/config"
 	"github.com/rjmand/go-substrate-rpc-client/v2/scale"
+	"github.com/rjmand/go-substrate-rpc-client/v2/types"
 	"github.com/vedhavyas/go-subkey"
 
 	"math/big"
 	"time"
 
-	"github.com/rjmand/go-substrate-rpc-client/v2/types"
-
-	"github.com/ChainSafe/ChainBridge/chains"
 	"github.com/ChainSafe/chainbridge-utils/blockstore"
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
+	"github.com/rjman-self/Platdot/chains"
+
+	iTypes "github.com/itering/scale.go/types"
 )
 
 type listener struct {
@@ -49,6 +50,14 @@ var chainSub = 1
 var chainAlaya = 0
 var MultiSignAddress = "0xbc1d0c69609ecf7cf6513415502b96247cf1747bfde31427462b2406d2f13746"
 
+// UtilityBatchCall Utility Batch Call
+type UtilityBatchCall struct {
+	CallIndex    string                  `json:"call_index"`
+	CallFunction string                  `json:"call_function"`
+	CallModule   string                  `json:"call_module"`
+	CallArgs     []iTypes.ExtrinsicParam `json:"call_args"`
+}
+
 // DispatchInfo
 type DispatchInfo struct {
 	// Weight of this transaction
@@ -69,6 +78,16 @@ type AccountInfo struct {
 		MiscFrozen types.U128
 		FreeFrozen types.U128
 	}
+}
+
+func findModule(metadata *types.Metadata, index types.CallIndex) types.FunctionMetadataV4 {
+	for _, mod := range metadata.AsMetadataV12.Modules {
+		if mod.Index == index.SectionIndex {
+			fmt.Println("Find module  ", mod.Name)
+			return mod.Calls[index.MethodIndex]
+		}
+	}
+	panic("Unknown call")
 }
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics) *listener {
@@ -135,6 +154,10 @@ var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
 // Polling begins at the block defined in `l.startBlock`. Failed attempts to fetch the latest block or parse
 // a block will be retried up to BlockRetryLimit times before returning with an error.
 
+func (l *listener) pollAllBlocks() error {
+	return nil
+}
+
 func (l *listener) pollBlocks() error {
 	var currentBlock = l.startBlock
 	// assume TestKeyringPairBob.PublicKey is a multisign address
@@ -173,6 +196,7 @@ func (l *listener) pollBlocks() error {
 		default:
 			count += 1
 			fmt.Printf("count = %d\n", count)
+
 			// Get finalized block hash
 			finalizedHash, err := api.RPC.Chain.GetFinalizedHead()
 			if err != nil {
@@ -180,6 +204,7 @@ func (l *listener) pollBlocks() error {
 				time.Sleep(BlockRetryInterval)
 				continue
 			}
+
 			// Get finalized block header
 			finalizedHeader, err := api.RPC.Chain.GetHeader(finalizedHash)
 			if err != nil {
@@ -187,9 +212,11 @@ func (l *listener) pollBlocks() error {
 				time.Sleep(BlockRetryInterval)
 				continue
 			}
+
 			if l.metrics != nil {
 				l.metrics.LatestKnownBlock.Set(float64(finalizedHeader.Number))
 			}
+
 			hash, err := api.RPC.Chain.GetBlockHash(currentBlock)
 			if err != nil && err.Error() == ErrBlockNotReady.Error() {
 				time.Sleep(BlockRetryInterval)
@@ -199,13 +226,15 @@ func (l *listener) pollBlocks() error {
 				time.Sleep(BlockRetryInterval)
 				continue
 			}
+
 			//fmt.Printf("block hash is %v\n", hash)
 			block, err := api.RPC.Chain.GetBlock(hash)
+
 			if err != nil {
 				panic(err)
 			}
 
-			fmt.Printf("block# %f\n", float64(block.Block.Header.Number))
+			//fmt.Printf("block# %f\n", float64(block.Block.Header.Number))
 
 			//blockFinalize, err := l.conn.api.RPC.Chain.SubscribeFinalizedHeads()
 			//fmt.Printf("block:\n%v\n", blockFinalize)
@@ -218,8 +247,16 @@ func (l *listener) pollBlocks() error {
 			fmt.Printf("\tYes! Found %d extrinsic(s) in this block.\n", len(block.Block.Extrinsics))
 			var extrinsics = block.Block.Extrinsics
 			for index, extrinsic := range extrinsics {
-				fmt.Printf("这是第%d笔交易\n", index)
-				if extrinsic.Method.CallIndex.MethodIndex == 189 && extrinsic.Method.CallIndex.SectionIndex == 4 {
+				fmt.Printf("这是 #%.0f 块的第%d笔交易-------------------------------------------------------------------------\n", float64(block.Block.Header.Number), index)
+				//fmt.Printf("Unmarshal %v\n", unmarshal)
+				//fmt.Printf("extrinsic MethodIndex is %d, extrinsic sectionIndex is %d\n", extrinsic.Method.CallIndex.MethodIndex, extrinsic.Method.CallIndex.SectionIndex)
+				fmt.Printf("extrinsic CallIndex is %v\n", extrinsic.Method.CallIndex)
+
+				//var extDec types.Extrinsic
+				//err = types.DecodeFromHexString(, &extDec)
+				if extrinsic.Method.CallIndex.MethodIndex != 0 && extrinsic.Method.CallIndex.SectionIndex != 3 {
+					//fmt.Printf("ext is %v\n", extrinsic)
+					fmt.Printf("extArgs is %v\n", extrinsic.Method.Args[:])
 
 					//for i, arg := range extrinsic.Method.Args {
 					//	var str = types.HexEncodeToString(extrinsic.Method.Args)
@@ -233,11 +270,10 @@ func (l *listener) pollBlocks() error {
 					//}
 
 					//extrinsic.Decode()
-					fmt.Printf("extrinsic MethodIndex is %d, extrinsic sectionIndex is %d\n", extrinsic.Method.CallIndex.MethodIndex, extrinsic.Method.CallIndex.SectionIndex)
 					fmt.Printf("extrinsic is Version %v\n", extrinsic.Version)
-					fmt.Printf("extrinsic is:---------------------------------------------\n")
-					fmt.Printf("%v\n", extrinsic)
-					fmt.Printf("extrinsic is over-----------------------------------------\n")
+					//fmt.Printf("extrinsic is:---------------------------------------------\n")
+					//fmt.Printf("%v\n", extrinsic.Method.Args)
+					//fmt.Printf("extrinsic is over-----------------------------------------\n")
 				}
 
 				//if extrinsic.Method.CallIndex.MethodIndex != 0 && extrinsic.Method.CallIndex.SectionIndex != 3{
@@ -347,67 +383,59 @@ func (l *listener) pollBlocks() error {
 					// Get the Extrinsic
 					ext := block.Block.Extrinsics[int(event.Phase.AsApplyExtrinsic)]
 					fmt.Println("Batch Transaction: ext: ", ext)
-
 					//resInter := DispatchInfo{}
 					accountID := ext.Signature.Signer.AsAccountID[:]
-
 					sender, err := subkey.SS58Address(accountID, uint8(42))
 					if err != nil {
 						return err
 					}
+
 					fmt.Println("sender: ", sender)
 
 					decoder := scale.NewDecoder(bytes.NewReader(ext.Method.Args))
-
 					n, err := decoder.DecodeUintCompact()
 					if err != nil {
 						return err
 					}
 
-					fmt.Printf("n = %d\n", n)
+					callIndex := types.CallIndex{}
+					err = decoder.Decode(&callIndex)
+					if err != nil {
+						panic(err)
+					}
 
-					//for call := uint64(0); call < n.Uint64(); call++ {
-					//	callIndex := types.CallIndex{}
-					//	err = decoder.Decode(&callIndex)
-					//	if err != nil {
-					//		return err
-					//	}
+					//callFunction := findModule(meta, callIndex)
 					//
-					//	fmt.Println("BXL: FetchTxs: callIndex ", call, "------", callIndex)
-
-					//callFunction, err := meta.FindCallIndex("Balances.transfer_keep_alive")
-					//if err != nil {
-					//	panic(err)
-					//}
-
-					//err := getConst(, "ChainIdentity", &actual)
-					//if err != nil {
-					//	return err
-					//}
-
-					//for _, mod := range meta.AsMetadataV12.Modules {
-					//	if string(mod.Name) == prefix {
-					//		for _, cons := range mod.Constants {
-					//			if string(cons.Name) == name {
-					//				return types.DecodeFromBytes(cons.Value, res)
-					//			}
+					//for _, callArg := range callFunction.Args {
+					//	if callArg.Type == "<T::Lookup as StaticLookup>::Source" {
+					//		var argValue = types.AccountID{}
+					//		_ = decoder.Decode(&argValue)
+					//		ss58, _ := subkey.SS58Address(argValue[:], uint8(42))
+					//		fmt.Println(callArg.Name, " = ", ss58)
+					//		//txInItem.To = ss58
+					//	} else if callArg.Type == "Compact<T::Balance>" {
+					//		var argValue = types.UCompact{}
+					//		_ = decoder.Decode(&argValue)
+					//		fmt.Println(callArg.Name, " = ", argValue)
+					//		argValueBigInt := big.Int(argValue)
+					//		amount := new(big.Int)
+					//		amount, ok := amount.SetString(argValueBigInt.String(), 10)
+					//		if !ok {
+					//			return fmt.Errorf("BXL: failed: unable to set amount string")
 					//		}
+					//		//coin := Coin{DOTAsset, amount}
+					//		//txInItem.Coins = append(txInItem.Coins, coin)
+					//	} else if callArg.Type == "Vec<u8>" {
+					//		var argValue = types.Bytes{}
+					//		// hex.DecodeString(a.Value.(string))
+					//		_ = decoder.Decode(&argValue)
+					//		value := string(argValue)
+					//		fmt.Println("BXL: FetchTxs: Vec<u8> ", callArg.Name, "=", value)
+					//		//txInItem.Memo = value
 					//	}
 					//}
-					//return fmt.Errorf("could not find constant %s.%s", prefix, name)
 
-					//
-					//var argValue = types.AccountID{}
-					//_ = decoder.Decode(&argValue)
-					//ss58, _ := subkey.SS58Address(argValue[:], uint8(42))
-					//
-					//_ = decoder.Decode(&argValue)
-					//fmt.Println(callArg.Name, " = ", argValue)
-					//argValueBigInt := big.Int(argValue)
-					//amount := new(big.Int)
-					//amount, ok := amount.SetString(argValueBigInt.String(), 10)
-					//
-					//}
+					fmt.Printf("n = %d\n", n)
 				}
 			}
 		}

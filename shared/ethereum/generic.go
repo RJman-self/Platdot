@@ -4,9 +4,9 @@
 package utils
 
 import (
-	"github.com/ChainSafe/ChainBridge/bindings/GenericHandler"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/rjman-self/Platdot/bindings/GenericHandler"
 )
 
 var StoreFunctionSig = CreateFunctionSignature("store(bytes32)")

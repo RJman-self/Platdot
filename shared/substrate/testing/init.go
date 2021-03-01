@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"testing"
 
-	utils "github.com/ChainSafe/ChainBridge/shared/substrate"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+	utils "github.com/rjman-self/Platdot/shared/substrate"
 )
 
 // WARNING: THIS METHOD IS UNSAFE AND MAY PANIC

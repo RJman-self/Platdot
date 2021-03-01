@@ -24,11 +24,6 @@ import (
 	"fmt"
 	"math/big"
 
-	bridge "github.com/ChainSafe/ChainBridge/bindings/Bridge"
-	erc20Handler "github.com/ChainSafe/ChainBridge/bindings/ERC20Handler"
-	erc721Handler "github.com/ChainSafe/ChainBridge/bindings/ERC721Handler"
-	"github.com/ChainSafe/ChainBridge/bindings/GenericHandler"
-	connection "github.com/ChainSafe/ChainBridge/connections/ethereum"
 	"github.com/ChainSafe/chainbridge-utils/blockstore"
 	"github.com/ChainSafe/chainbridge-utils/core"
 	"github.com/ChainSafe/chainbridge-utils/crypto/secp256k1"
@@ -39,6 +34,11 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
+	bridge "github.com/rjman-self/Platdot/bindings/Bridge"
+	erc20Handler "github.com/rjman-self/Platdot/bindings/ERC20Handler"
+	erc721Handler "github.com/rjman-self/Platdot/bindings/ERC721Handler"
+	"github.com/rjman-self/Platdot/bindings/GenericHandler"
+	connection "github.com/rjman-self/Platdot/connections/ethereum"
 )
 
 var _ core.Chain = &Chain{}

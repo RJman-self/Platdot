@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"math/big"
 
-	utils "github.com/ChainSafe/ChainBridge/shared/ethereum"
 	"github.com/ChainSafe/chainbridge-utils/core"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ethereum/go-ethereum/common"
+	utils "github.com/rjman-self/Platdot/shared/ethereum"
 )
 
 const DefaultGasLimit = 6721975
