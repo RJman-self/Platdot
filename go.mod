@@ -12,10 +12,10 @@ require (
 	github.com/centrifuge/go-substrate-rpc-client v2.0.0-alpha.5+incompatible
 	github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0
 	github.com/ethereum/go-ethereum v1.9.25
-	github.com/gogo/protobuf v1.1.1
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/prometheus/client_golang v1.4.1
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
+	golang.org/x/net v0.0.0-20201021035429-f5854403a974 // indirect
 )
