@@ -241,7 +241,7 @@ func run(ctx *cli.Context) error {
 	go func() {
 		//redeemTx_Alice()
 		//redeem()
-		//redeemTx()
+		redeemTx()
 	}()
 
 	c.Start()
@@ -518,17 +518,17 @@ func redeemTx() bool {
 
 	var otherSignatories = []types.AccountID{Bob.AsAccountID, Alice.AsAccountID}
 
-	//type TimePointU64 struct {
-	//	Height uint64
-	//	Index types.U32
-	//}
+	type TimePointU64 struct {
+		Height types.OptionU32
+		Index  types.U32
+	}
 
-	//var maybeTimepointU64 = TimePointU64{
-	//	Height: uint64(210),
-	//	Index:  types.U32(1),
-	//}
+	var value = types.NewOptionU32(67)
 
-	var maybeTimepoint = []byte{}
+	var maybeTimepoint = TimePointU64{
+		Height: value,
+		Index:  1,
+	}
 
 	var maxWeight = types.Weight(222521000)
 
@@ -662,6 +662,7 @@ func redeemTx_Alice() bool {
 	callHash := buffer.Bytes()
 
 	fmt.Printf("====================================\n")
+	fmt.Printf("c = %v\n", c)
 	fmt.Printf("c_hash = %v\n", callHash)
 	fmt.Printf("====================================\n")
 
@@ -684,12 +685,7 @@ func redeemTx_Alice() bool {
 		Index  types.U32
 	}
 
-	var value = types.NewOptionU32(2846)
-
-	var maybeTimepoint = TimePointU64{
-		Height: value,
-		Index:  1,
-	}
+	var maybeTimepoint = []byte{}
 
 	var bufferTimePoint = bytes.Buffer{}
 	encoderTimePoint := scale.NewEncoder(&bufferTimePoint)
@@ -712,7 +708,7 @@ func redeemTx_Alice() bool {
 
 	fmt.Printf("time: %v\n", maybeTimepoint)
 	fmt.Printf("time: %v\n", timePointHash)
-	fmt.Printf("%v\n", mc)
+	fmt.Printf("mc = %v\n", mc)
 
 	//END: Create a call of MultiSignTransfer
 	ext := types.NewExtrinsic(mc)
@@ -760,10 +756,12 @@ func redeemTx_Alice() bool {
 
 	// Sign the transaction using Alice's default account
 	//err = ext.Sign(sss, o)
+	fmt.Printf("ext = %v\n", ext)
 	err = ext.MultiSign(signature.TestKeyringPairAlice, o)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Printf("Signed_ext = %v\n", ext)
 
 	// Do the transfer and track the actual status
 	//sub, err := api.RPC.Author.SubmitAndWatchExtrinsic(ext)
