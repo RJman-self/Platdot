@@ -10,6 +10,7 @@ import (
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
+
 	"github.com/centrifuge/go-substrate-rpc-client/v2/rpc/author"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
@@ -29,6 +30,7 @@ type Connection struct {
 	nonceLock   sync.Mutex             // Locks nonce for updates
 	stop        <-chan int             // Signals system shutdown, should be observed in all selects and loops
 	sysErr      chan<- error           // Propagates fatal errors to core
+	prefix      []byte                 // the prefix of token
 }
 
 func NewConnection(url string, name string, key *signature.KeyringPair, log log15.Logger, stop <-chan int, sysErr chan<- error) *Connection {

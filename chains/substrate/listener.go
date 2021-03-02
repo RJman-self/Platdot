@@ -4,16 +4,22 @@
 package substrate
 
 import (
-	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/rjman-self/go-polkadot-rpc-client/client"
+	"github.com/rjman-self/go-polkadot-rpc-client/models"
+	"strconv"
+
+	//"github.com/stafiprotocol/go-substrate-rpc-client"
+	//"github.com/stafiprotocol/go-substrate-rpc-client/config"
+	//"github.com/stafiprotocol/go-substrate-rpc-client/types"
+
 	gsrpc "github.com/rjmand/go-substrate-rpc-client/v2"
 	"github.com/rjmand/go-substrate-rpc-client/v2/config"
-	"github.com/rjmand/go-substrate-rpc-client/v2/scale"
 	"github.com/rjmand/go-substrate-rpc-client/v2/types"
-	"github.com/vedhavyas/go-subkey"
-
 	"math/big"
 	"time"
 
@@ -162,7 +168,7 @@ func (l *listener) pollBlocks() error {
 	var currentBlock = l.startBlock
 	// assume TestKeyringPairBob.PublicKey is a multisign address
 
-	var multiSignPk, err = types.HexDecodeString(MultiSignAddress)
+	var multiSignPk, _ = types.HexDecodeString(MultiSignAddress)
 	var multiSignAccount = types.NewAccountID(multiSignPk)
 
 	// Instantiate the API
@@ -186,6 +192,7 @@ func (l *listener) pollBlocks() error {
 	if err != nil {
 		panic(err)
 	}
+
 	defer sub.Unsubscribe()
 
 	var count = 0
@@ -218,6 +225,7 @@ func (l *listener) pollBlocks() error {
 			}
 
 			hash, err := api.RPC.Chain.GetBlockHash(currentBlock)
+
 			if err != nil && err.Error() == ErrBlockNotReady.Error() {
 				time.Sleep(BlockRetryInterval)
 				continue
@@ -227,14 +235,14 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			//fmt.Printf("block hash is %v\n", hash)
+			fmt.Printf("block hash is %v\n", hash)
 			block, err := api.RPC.Chain.GetBlock(hash)
 
 			if err != nil {
 				panic(err)
 			}
-
-			//fmt.Printf("block# %f\n", float64(block.Block.Header.Number))
+			var blockNumber = int64(block.Block.Header.Number)
+			fmt.Printf("block# %d\n", blockNumber)
 
 			//blockFinalize, err := l.conn.api.RPC.Chain.SubscribeFinalizedHeads()
 			//fmt.Printf("block:\n%v\n", blockFinalize)
@@ -244,60 +252,46 @@ func (l *listener) pollBlocks() error {
 			//fmt.Printf("block:\n%v\n", block)
 			//number, _ := strconv.ParseInt(utils.RemoveHex0x(block.Block.Header.Number), 16, 64)
 			// Extrinsics in the block
-			fmt.Printf("\tYes! Found %d extrinsic(s) in this block.\n", len(block.Block.Extrinsics))
-			var extrinsics = block.Block.Extrinsics
-			for index, extrinsic := range extrinsics {
-				fmt.Printf("这是 #%.0f 块的第%d笔交易-------------------------------------------------------------------------\n", float64(block.Block.Header.Number), index)
-				//fmt.Printf("Unmarshal %v\n", unmarshal)
-				//fmt.Printf("extrinsic MethodIndex is %d, extrinsic sectionIndex is %d\n", extrinsic.Method.CallIndex.MethodIndex, extrinsic.Method.CallIndex.SectionIndex)
-				fmt.Printf("extrinsic CallIndex is %v\n", extrinsic.Method.CallIndex)
 
-				//var extDec types.Extrinsic
-				//err = types.DecodeFromHexString(, &extDec)
-				if extrinsic.Method.CallIndex.MethodIndex != 0 && extrinsic.Method.CallIndex.SectionIndex != 3 {
-					//fmt.Printf("ext is %v\n", extrinsic)
-					fmt.Printf("extArgs is %v\n", extrinsic.Method.Args[:])
-
-					//for i, arg := range extrinsic.Method.Args {
-					//	var str = types.HexEncodeToString(extrinsic.Method.Args)
-					//
-					//	fmt.Printf("%v\n", str)
-					//let [prefix, buffer] = parsePrefix(extrinsic.args[0]);
-					//// Get sender address
-					//let sender = extrinsic.signer.toString();
-
-					//fmt.Printf("Index: %d, Arg: %s", i, arg);
-					//}
-
-					//extrinsic.Decode()
-					fmt.Printf("extrinsic is Version %v\n", extrinsic.Version)
-					//fmt.Printf("extrinsic is:---------------------------------------------\n")
-					//fmt.Printf("%v\n", extrinsic.Method.Args)
-					//fmt.Printf("extrinsic is over-----------------------------------------\n")
-				}
-
-				//if extrinsic.Method.CallIndex.MethodIndex != 0 && extrinsic.Method.CallIndex.SectionIndex != 3{
-				//
-				//}
-			}
-
-			// Write to blockstore
-			err = l.blockstore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
-			if err != nil {
-				l.log.Error("Failed to write to blockstore", "err", err)
-			}
-
-			if l.metrics != nil {
-				l.metrics.BlocksProcessed.Inc()
-				l.metrics.LatestProcessedBlock.Set(float64(currentBlock))
-			}
-
-			currentBlock++
-			l.latestBlock.Height = big.NewInt(0).SetUint64(currentBlock)
-			l.latestBlock.LastUpdated = time.Now()
-
-			//header, err := l.conn.api.RPC.Chain.SubscribeNewHeads()
-			//fmt.Printf("header:\n%v\n", header)
+			//fmt.Printf("\tYes! Found %d extrinsic(s) in this block.\n", len(block.Block.Extrinsics))
+			//var extrinsics = resp.Extrinsic
+			//for index, extrinsic := range extrinsics {
+			//	fmt.Printf("这是 #%.0f 块的第%d笔交易-------------------------------------------------------------------------\n", float64(block.Block.Header.Number), index)
+			//
+			//	//fmt.Printf("Unmarshal %v\n", unmarshal)
+			//	//fmt.Printf("extrinsic MethodIndex is %d, extrinsic sectionIndex is %d\n", extrinsic.Method.CallIndex.MethodIndex, extrinsic.Method.CallIndex.SectionIndex)
+			//	fmt.Printf("extrinsic CallIndex is %v\n", extrinsic.Method.CallIndex)
+			//
+			//	//var extDec types.Extrinsic
+			//	//err = types.DecodeFromHexString(, &extDec)
+			//
+			//
+			//	if extrinsic.Method.CallIndex.MethodIndex != 0 && extrinsic.Method.CallIndex.SectionIndex != 3 {
+			//		//fmt.Printf("ext is %v\n", extrinsic)
+			//		fmt.Printf("extArgs is %v\n", extrinsic.Method.Args[:])
+			//
+			//		//for i, arg := range extrinsic.Method.Args {
+			//		//	var str = types.HexEncodeToString(extrinsic.Method.Args)
+			//		//
+			//		//	fmt.Printf("%v\n", str)
+			//		//let [prefix, buffer] = parsePrefix(extrinsic.args[0]);
+			//		//// Get sender address
+			//		//let sender = extrinsic.signer.toString();
+			//
+			//		//fmt.Printf("Index: %d, Arg: %s", i, arg);
+			//		//}
+			//
+			//		//extrinsic.Decode()
+			//		fmt.Printf("extrinsic is Version %v\n", extrinsic.Version)
+			//		//fmt.Printf("extrinsic is:---------------------------------------------\n")
+			//		//fmt.Printf("%v\n", extrinsic.Method.Args)
+			//		//fmt.Printf("extrinsic is over-----------------------------------------\n")
+			//	}
+			//
+			//	//if extrinsic.Method.CallIndex.MethodIndex != 0 && extrinsic.Method.CallIndex.SectionIndex != 3{
+			//	//
+			//	//}
+			//}
 
 			set := <-sub.Chan()
 			// inner loop for the changes within one of those notifications
@@ -316,37 +310,10 @@ func (l *listener) pollBlocks() error {
 				}
 
 				// Show what we are busy with
-				for _, e := range events.Balances_Transfer {
-					//fmt.Printf("\tBalances:Transfer:: (phase = %v)\n", e.Phase)
-					//fmt.Printf("\t\t%v, %v, %v\n", e.From, e.To, e.Value)
-					if e.To == multiSignAccount {
-						fmt.Printf("Succeed catch a tx to mulsigAddress\n")
-
-						var fromChianId = msg.ChainId(chainSub)
-						var toChianId = msg.ChainId(chainAlaya)
-
-						//set parameters in manually
-						//TODO: Get data from Batch::Remark
-						recipient := types.NewAccountID(common.FromHex("0xff93B45308FD417dF303D6515aB04D9e89a750Ca"))
-						rId := msg.ResourceIdFromSlice(common.FromHex(AKSM))
-
-						fmt.Printf("before ++, depositNonce is %#v\n", l.depositNonce[recipient])
-						//TODO:how to storage depositNonce
-						l.depositNonce[recipient]++
-
-						//TODO: update msg.Nonce
-						m := msg.NewFungibleTransfer(
-							fromChianId, // Unset
-							toChianId,
-							msg.Nonce(l.depositNonce[recipient]),
-							big.NewInt(123),
-							rId,
-							recipient[:],
-						)
-
-						l.submitMessage(m, err)
-					}
-				}
+				//for _, e := range events.Balances_Transfer {
+				//	//fmt.Printf("\tBalances:Transfer:: (phase = %v)\n", e.Phase)
+				//	//fmt.Printf("\t\t%v, %v, %v\n", e.From, e.To, e.Value)
+				//}
 				for _, e := range events.Balances_Deposit {
 					fmt.Printf("\tBalances:Deposit:: (phase=%#v)\n", e.Phase)
 					fmt.Printf("\t\t%v, %v\n", e.Who, e.Balance)
@@ -377,32 +344,102 @@ func (l *listener) pollBlocks() error {
 				for _, e := range events.Utility_BatchCompleted {
 					fmt.Printf("\tSystem:detect new cross-chain transfer request:: (phase=%#v)\n", e.Topics)
 					fmt.Printf("\tSystem:detect new cross-chain transfer request:: (phase=%#v)\n", e.Phase)
+					for _, e := range events.Balances_Transfer {
+						if e.To == multiSignAccount {
+							fmt.Printf("Succeed catch a tx to mulsigAddress\n")
+							// If BatchCompleted and multiAccount Balance Changed => MultiSignTransfer
+
+							// 1. New a client to Extrinsics of Block
+							c, err := client.New("ws://127.0.0.1:9944")
+							if err != nil {
+								panic(err)
+							}
+							c.SetPrefix(ss58.PolkadotPrefix)
+							//expand.SetSerDeOptions(false)
+							resp, err := c.GetBlockByNumber(int64(currentBlock))
+							if err != nil {
+								panic(err)
+							}
+							d, _ := json.Marshal(resp)
+							fmt.Println(string(d))
+
+							// 2. validate and get essential patameters of message
+							var fromChianId = msg.ChainId(chainSub)
+							var toChianId = msg.ChainId(chainAlaya)
+							rId := msg.ResourceIdFromSlice(common.FromHex(AKSM))
+							var recipient types.AccountID
+							var amount int64
+
+							//derive information from block
+							var fromPk string
+							var find = false
+							for _, extrinsic := range resp.Extrinsic {
+								if extrinsic.Type == "transfer" {
+									// validate amunt
+									if e.Value.String() == extrinsic.Amount {
+										fromPk, _ = ss58.Encode(types.NewBytes(e.From[:]), ss58.PolkadotPrefix)
+										//fromAddress, err = ss58.EncodeByPubHex(fromPk, ss58.PolkadotPrefix)
+										find = true
+										amount, err = strconv.ParseInt(extrinsic.Amount, 10, 64)
+									}
+								} else if find == true && extrinsic.Type == "remark" {
+									// validate fromAddress
+									if fromPk == extrinsic.FromAddress {
+										recipient = types.NewAccountID([]byte(extrinsic.ToAddress))
+									}
+								} else {
+									continue
+								}
+							}
+							fmt.Printf("BOOOOOOOOOOOOOM This is The No.%d MultiSignTransfer!!!!!!!!!!!!\n")
+							fmt.Printf("Hello,ready to send %d PDOT to %s!\n", amount, recipient)
+
+							//recipient := types.NewAccountID(common.FromHex("0xff93B45308FD417dF303D6515aB04D9e89a750Ca"))
+							// 3. construct parameters of message
+							fmt.Printf("before++, depositNonce is %#v\n", l.depositNonce[recipient])
+							//TODO:how to storage depositNonce
+							l.depositNonce[recipient]++
+							//TODO: update msg.Nonce
+							m := msg.NewFungibleTransfer(
+								fromChianId, // Unset
+								toChianId,
+								msg.Nonce(blockNumber),
+								big.NewInt(amount),
+								rId,
+								recipient[:],
+							)
+							l.submitMessage(m, err)
+						}
+					}
 				}
 				// Loop through successful batch utility events
-				for _, event := range events.Utility_BatchCompleted {
+				for _, e := range events.Utility_BatchCompleted {
+					fmt.Printf("\tSystem:detect new Utility_BatchCompleted request::(phase=%#v)\n", e.Phase)
+					fmt.Printf("\tSystem:detect new Utility_BatchCompleted request::(Topics=%#v)\n", e.Topics)
+
 					// Get the Extrinsic
-					ext := block.Block.Extrinsics[int(event.Phase.AsApplyExtrinsic)]
-					fmt.Println("Batch Transaction: ext: ", ext)
-					//resInter := DispatchInfo{}
-					accountID := ext.Signature.Signer.AsAccountID[:]
-					sender, err := subkey.SS58Address(accountID, uint8(42))
-					if err != nil {
-						return err
-					}
-
-					fmt.Println("sender: ", sender)
-
-					decoder := scale.NewDecoder(bytes.NewReader(ext.Method.Args))
-					n, err := decoder.DecodeUintCompact()
-					if err != nil {
-						return err
-					}
-
-					callIndex := types.CallIndex{}
-					err = decoder.Decode(&callIndex)
-					if err != nil {
-						panic(err)
-					}
+					//ext := block.Block.Extrinsics[int(event.Phase.AsApplyExtrinsic)]
+					//fmt.Println("Batch Transaction: ext: ", ext)
+					////resInter := DispatchInfo{}
+					//accountID := ext.Signature.Signer.AsAccountID[:]
+					//sender, err := subkey.SS58Address(accountID, uint8(42))
+					//if err != nil {
+					//	return err
+					//}
+					//
+					//fmt.Println("sender: ", sender)
+					//
+					//decoder := scale.NewDecoder(bytes.NewReader(ext.Method.Args))
+					//n, err := decoder.DecodeUintCompact()
+					//if err != nil {
+					//	return err
+					//}
+					//
+					//callIndex := types.CallIndex{}
+					//err = decoder.Decode(&callIndex)
+					//if err != nil {
+					//	panic(err)
+					//}
 
 					//callFunction := findModule(meta, callIndex)
 					//
@@ -435,9 +472,27 @@ func (l *listener) pollBlocks() error {
 					//	}
 					//}
 
-					fmt.Printf("n = %d\n", n)
+					//fmt.Printf("n = %d\n", n)
 				}
 			}
+
+			// Write to blockstore
+			err = l.blockstore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
+			if err != nil {
+				l.log.Error("Failed to write to blockstore", "err", err)
+			}
+
+			if l.metrics != nil {
+				l.metrics.BlocksProcessed.Inc()
+				l.metrics.LatestProcessedBlock.Set(float64(currentBlock))
+			}
+
+			currentBlock++
+			l.latestBlock.Height = big.NewInt(0).SetUint64(currentBlock)
+			l.latestBlock.LastUpdated = time.Now()
+
+			//header, err := l.conn.api.RPC.Chain.SubscribeNewHeads()
+			//fmt.Printf("header:\n%v\n", header)
 		}
 	}
 }
@@ -724,6 +779,10 @@ func (l *listener) pollBlocks() error {
 //		}
 //	}
 //}
+
+func getRemark(resp *models.BlockResponse, blockNumber int64) string {
+	return ""
+}
 
 // submitMessage inserts the chainId into the msg and sends it to the router
 func (l *listener) submitMessage(m msg.Message, err error) {

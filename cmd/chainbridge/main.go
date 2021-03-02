@@ -110,16 +110,15 @@ var (
 // init initializes CLI
 func init() {
 	app.Action = run
-	app.Copyright = "Copyright 2019 ChainSafe Systems Authors"
-	app.Name = "chainbridge"
-	app.Usage = "ChainBridge"
-	app.Authors = []*cli.Author{{Name: "ChainSafe Systems 2019"}}
+	app.Copyright = "Copyright 2021 ChainX Authors"
+	app.Name = "Platdot"
+	app.Usage = "Platdot"
+	app.Authors = []*cli.Author{{Name: "Platdot 2021"}}
 	app.Version = Version
 	app.EnableBashCompletion = true
 	app.Commands = []*cli.Command{
 		&accountCommand,
 	}
-
 	app.Flags = append(app.Flags, cliFlags...)
 	app.Flags = append(app.Flags, devFlags...)
 }
@@ -152,7 +151,7 @@ func run(ctx *cli.Context) error {
 		return err
 	}
 
-	log.Info("Starting ChainBridge...")
+	log.Info("Starting Platdot...")
 
 	cfg, err := config.GetConfig(ctx)
 	if err != nil {
@@ -206,7 +205,6 @@ func run(ctx *cli.Context) error {
 		} else {
 			return errors.New("unrecognized Chain Type")
 		}
-
 		if err != nil {
 			return err
 		}
@@ -242,7 +240,7 @@ func run(ctx *cli.Context) error {
 		//redeemTx_Alice()
 		//redeem()
 		//redeemTx()
-		redeemTx_Utility()
+		//redeemTx_Utility()
 	}()
 
 	c.Start()
