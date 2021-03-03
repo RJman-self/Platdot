@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/ChainSafe/chainbridge-utils/crypto"
 	"math/big"
 	"sync"
 	"time"
@@ -88,7 +87,6 @@ func (c *Connection) newTransactOpts(value, gasLimit, gasPrice *big.Int) (*bind.
 	address := ethcrypto.PubkeyToAddress(privateKey.PublicKey)
 	fmt.Printf("%v\n", address.String())
 
-	bech32addr, _ := crypto.ConvertAndEncode("atp", address.Bytes())
 
 	//converted, err := bech32.ConvertBits(data2, 8, 5, true)
 	//if err != nil {
@@ -97,18 +95,18 @@ func (c *Connection) newTransactOpts(value, gasLimit, gasPrice *big.Int) (*bind.
 	//data3, err := bech32.Encode("atp", converted)
 	//fmt.Printf("%v\n", data3)
 
-	var bytes = []byte(bech32addr)
-	bech32address := ethcommon.BytesToAddress(bytes)
-	nonce, err := c.conn.PendingNonceAt(context.Background(), bech32address)
+	//bech32addr, _ := crypto.ConvertAndEncode("atp", address.Bytes())
+	//var bytes = []byte(bech32addr)
+	//bech32address := ethcommon.BytesToAddress(bytes)
+	nonce, err := c.conn.PendingNonceAt(context.Background(), address)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	id, err := c.conn.ChainID(context.Background())
-	if err != nil {
-		return nil, 0, err
-	}
-
+	//id, err := c.conn.ChainID(context.Background())
+	//if err != nil {
+	//	return nil, 0, err
+	id := big.NewInt(0)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, id)
 	if err != nil {
 		return nil, 0, err

@@ -62,11 +62,18 @@ func NewListener(conn Connection, cfg *Config, log log15.Logger, bs blockstore.B
 }
 
 // setContracts sets the listener with the appropriate contracts
-func (l *listener) setContracts(bridge *Bridge.Bridge, erc20Handler *ERC20Handler.ERC20Handler, erc721Handler *ERC721Handler.ERC721Handler, genericHandler *GenericHandler.GenericHandler) {
+//func (l *listener) setContracts(bridge *Bridge.Bridge, erc20Handler *ERC20Handler.ERC20Handler, erc721Handler *ERC721Handler.ERC721Handler, genericHandler *GenericHandler.GenericHandler) {
+//	l.bridgeContract = bridge
+//	l.erc20HandlerContract = erc20Handler
+//	l.erc721HandlerContract = erc721Handler
+//	l.genericHandlerContract = genericHandler
+//}
+
+func (l *listener) setContracts(bridge *Bridge.Bridge, erc20Handler *ERC20Handler.ERC20Handler) {
 	l.bridgeContract = bridge
 	l.erc20HandlerContract = erc20Handler
-	l.erc721HandlerContract = erc721Handler
-	l.genericHandlerContract = genericHandler
+	//l.erc721HandlerContract = erc721Handler
+	//l.genericHandlerContract = genericHandler
 }
 
 // sets the router
