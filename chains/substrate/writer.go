@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/centrifuge/go-substrate-rpc-client/v2/rpc/author"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
 	"math/big"
@@ -30,18 +31,29 @@ var TerminatedError = errors.New("terminated")
 var MultisignThreshold = 2
 var RelayerSeedOrSecret = "0x3c0c4fc26010d0512cd36a0f467375b3dbe2f207bbfda0c551b5e41ee495e909"
 var RelayerAddress = "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm"
+var url = "ws://127.0.0.1:9944"
 
 type writer struct {
 	conn       *Connection
+	listener   *listener
 	log        log15.Logger
 	sysErr     chan<- error
 	metrics    *metrics.ChainMetrics
 	extendCall bool // Extend extrinsic calls to substrate with ResourceID.Used for backward compatibility with example pallet.
+
+	//name          string
+	//chainId       msg.ChainId
+	//startBlock    uint64
+	//blockstore    blockstore.Blockstorer
+	//stop          <-chan int
+	//latestBlock   metrics.LatestBlock
+	//client        client.Client
 }
 
-func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics, extendCall bool) *writer {
+func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics, extendCall bool) *writer {
 	return &writer{
 		conn:       conn,
+		listener:   listener,
 		log:        log,
 		sysErr:     sysErr,
 		metrics:    m,
@@ -50,14 +62,16 @@ func NewWriter(conn *Connection, log log15.Logger, sysErr chan<- error, m *metri
 }
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
-	fmt.Printf("--------------------------Writer try to make a simpleTransfer------------------------------------------\n")
-	w.redeemTx(m)
-	//w.redeemMultiSignTx(m)
-	fmt.Printf("--------------------------Writer make a simpleTransfer over------------------------------------------\n")
+	fmt.Printf("--------------------------Writer try to make a MultiSignTransfer------------------------------------------\n")
+	err := w.redeemTx(m)
+	if err != nil {
+		fmt.Printf("reemTx failed! Error is %v\n", err)
+	}
+	fmt.Printf("--------------------------Writer succeed made a MultiSignTransfer------------------------------------------\n")
 	return true
 }
 
-func (w *writer) redeemTx(m msg.Message) bool {
+func (w *writer) redeemTx(m msg.Message) error {
 	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
 	RelayerPublicKey := types.MustHexDecodeString("0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075")
 	sss := signature.KeyringPair{
@@ -75,17 +89,19 @@ func (w *writer) redeemTx(m msg.Message) bool {
 	if err != nil {
 		panic(err)
 	}
+
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
 
 	//BEGIN: Create a call of transfer
-	method := "Balances.transfer_keep_alive"
+	method := string(utils.BalancesTransferKeepAliveMethod)
 	recipient := types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
 	// convert PDOT amount to DOT amount
 	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
 	oneToken := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
 	bigAmt.Div(bigAmt, oneToken)
 	amount := types.NewUCompactFromUInt(bigAmt.Uint64())
-	//create a transfer call
+
+	//create a transfer_keep_alive call
 	c, err := types.NewCall(
 		meta,
 		method,
@@ -106,16 +122,12 @@ func (w *writer) redeemTx(m msg.Message) bool {
 	fmt.Printf("====================================\n")
 
 	//BEGIN: Create a call of MultiSignTransfer
-	mulMethod := "Multisig.as_multi"
-
+	mulMethod := string(utils.MultisigAsMulti)
 	var threshold = uint16(MultisignThreshold)
 
 	// parameters of multiSignature
 	Alice, _ := types.NewAddressFromHexAccountID("0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d")
 	Bob, _ := types.NewAddressFromHexAccountID("0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48")
-	if err != nil {
-		panic(err)
-	}
 
 	var otherSignatories = []types.AccountID{Bob.AsAccountID, Alice.AsAccountID}
 
@@ -151,11 +163,6 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 	//END: Create a call of MultiSignTransfer
 	ext := types.NewExtrinsic(mc)
-	//ext := types.Extrinsic{
-	//	Version:   types.ExtrinsicVersion4,
-	//	Signature: types.ExtrinsicSignatureV4{Signer: types.MultiAddress{}},
-	//	Method:    mc,
-	//}
 
 	genesisHash, err := w.conn.api.RPC.Chain.GetBlockHash(0)
 	if err != nil {
@@ -198,17 +205,32 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 	// Do the transfer and track the actual status
 	sub, err := w.conn.api.RPC.Author.SubmitAndWatchExtrinsic(ext)
+
+	err = w.watchSubmission(sub)
 	if err != nil {
-		panic(err)
+		fmt.Printf("subWriter meet err: %v\n", err)
 	}
+	return err
+}
 
-	defer sub.Unsubscribe()
-
+func (w *writer) watchSubmission(sub *author.ExtrinsicStatusSubscription) error {
 	for {
-		status := <-sub.Chan()
-		//fmt.Printf("Transaction status: %#v\n", status)
-		if status.IsFinalized {
-			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
+		select {
+		case status := <-sub.Chan():
+			switch {
+			case status.IsInBlock:
+				w.log.Trace("Extrinsic included in block", "block", status.AsInBlock.Hex())
+				return nil
+			case status.IsRetracted:
+				fmt.Printf("extrinsic retracted: %s", status.AsRetracted.Hex())
+			case status.IsDropped:
+				fmt.Printf("extrinsic dropped from network")
+			case status.IsInvalid:
+				fmt.Printf("extrinsic invalid")
+			}
+		case err := <-sub.Err():
+			w.log.Trace("Extrinsic subscription error", "err", err)
+			return err
 		}
 	}
 }
@@ -817,4 +839,8 @@ func ByteArrayToInt(arr []byte) int64 {
 		*(*uint8)(unsafe.Pointer(uintptr(unsafe.Pointer(&val)) + uintptr(i))) = arr[i]
 	}
 	return val
+}
+
+func (w *writer) getParametersFromChain() {
+
 }

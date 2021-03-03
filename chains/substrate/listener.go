@@ -31,6 +31,9 @@ import (
 	iTypes "github.com/itering/scale.go/types"
 )
 
+type MultiSignTx struct {
+}
+
 type listener struct {
 	name          string
 	chainId       msg.ChainId
@@ -97,7 +100,7 @@ func findModule(metadata *types.Metadata, index types.CallIndex) types.FunctionM
 }
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics) *listener {
-	c, err := client.New("ws://127.0.0.1:9944")
+	c, err := client.New(url)
 	if err != nil {
 		panic(err)
 	}
@@ -208,7 +211,7 @@ func (l *listener) pollBlocks() error {
 			return errors.New("terminated")
 		default:
 			count += 1
-			fmt.Printf("count = %d\n", count)
+			fmt.Printf("poll count = %d\n", count)
 
 			// Get finalized block hash
 			finalizedHash, err := api.RPC.Chain.GetFinalizedHead()
@@ -247,6 +250,7 @@ func (l *listener) pollBlocks() error {
 			if err != nil {
 				panic(err)
 			}
+
 			var blockNumber = int64(block.Block.Header.Number)
 			fmt.Printf("block# %d\n", blockNumber)
 
