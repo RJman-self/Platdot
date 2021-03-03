@@ -131,7 +131,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 	//	Index:  1,
 	//}
 
-	var maybeTimePoint = []byte{}
+	var maybeTimePoint []byte
 	var maxWeight = types.Weight(222521000)
 
 	//END: Create a call of transfer

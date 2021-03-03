@@ -4,7 +4,6 @@
 package substrate
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/JFJun/go-substrate-crypto/ss58"
@@ -46,6 +45,7 @@ type listener struct {
 	sysErr        chan<- error
 	latestBlock   metrics.LatestBlock
 	metrics       *metrics.ChainMetrics
+	client        client.Client
 }
 
 // Frequency of polling for a new block
@@ -97,6 +97,11 @@ func findModule(metadata *types.Metadata, index types.CallIndex) types.FunctionM
 }
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics) *listener {
+	c, err := client.New("ws://127.0.0.1:9944")
+	if err != nil {
+		panic(err)
+	}
+	c.SetPrefix(ss58.PolkadotPrefix)
 	return &listener{
 		name:          name,
 		chainId:       id,
@@ -110,6 +115,7 @@ func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint6
 		sysErr:        sysErr,
 		latestBlock:   metrics.LatestBlock{LastUpdated: time.Now()},
 		metrics:       m,
+		client:        *c,
 	}
 }
 
@@ -327,10 +333,13 @@ func (l *listener) pollBlocks() error {
 				//	fmt.Printf("\t\t%v\n", e.DispatchError)
 				//}
 
+				var multiSigner = map[types.AccountID]bool{}
 				for _, e := range events.Multisig_NewMultisig {
+					multiSigner[e.Who] = true
 					fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
 					fmt.Printf("\t\tFrom:%v,To: %v\n", e.Who, e.ID)
 				}
+
 				for _, e := range events.Multisig_MultisigApproval {
 					fmt.Printf("\tSystem:detect new multisign approval:: (phase=%#v)\n", e.Phase)
 				}
@@ -341,74 +350,59 @@ func (l *listener) pollBlocks() error {
 				for _, e := range events.Multisig_MultisigCancelled {
 					fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
 				}
-				for _, e := range events.Utility_BatchCompleted {
-					fmt.Printf("\tSystem:detect new cross-chain transfer request:: (phase=%#v)\n", e.Topics)
-					fmt.Printf("\tSystem:detect new cross-chain transfer request:: (phase=%#v)\n", e.Phase)
-					for _, e := range events.Balances_Transfer {
+				if events.Utility_BatchCompleted != nil {
+					for bi, e := range events.Balances_Transfer {
+						// If BatchCompleted and multiAccount Balance Changed => MultiSignTransfer
 						if e.To == multiSignAccount {
-							fmt.Printf("Succeed catch a tx to mulsigAddress\n")
-							// If BatchCompleted and multiAccount Balance Changed => MultiSignTransfer
+							fmt.Printf("----------------------------------------Succeed catch a tx to mulsigAddress----------------------------------------\n")
+							// 1. derive Extrinsics of Block
+							resp, err := l.client.GetBlockByNumber(int64(currentBlock))
+							if err != nil {
+								panic(err)
+							}
 
-							// 1. New a client to Extrinsics of Block
-							c, err := client.New("ws://127.0.0.1:9944")
-							if err != nil {
-								panic(err)
-							}
-							c.SetPrefix(ss58.PolkadotPrefix)
-							//expand.SetSerDeOptions(false)
-							resp, err := c.GetBlockByNumber(int64(currentBlock))
-							if err != nil {
-								panic(err)
-							}
-							d, _ := json.Marshal(resp)
-							fmt.Println(string(d))
+							//d, _ := json.Marshal(resp)
+							//fmt.Println(string(d))
 
 							// 2. validate and get essential patameters of message
 							var fromChianId = msg.ChainId(chainSub)
 							var toChianId = msg.ChainId(chainAlaya)
-							rId := msg.ResourceIdFromSlice(common.FromHex(AKSM))
+							var rId = msg.ResourceIdFromSlice(common.FromHex(AKSM))
 							var recipient types.AccountID
 							var amount int64
 
 							//derive information from block
-							var fromPk string
-							var find = false
 							for _, extrinsic := range resp.Extrinsic {
-								if extrinsic.Type == "transfer" {
-									// validate amunt
-									if e.Value.String() == extrinsic.Amount {
-										fromPk, _ = ss58.Encode(types.NewBytes(e.From[:]), ss58.PolkadotPrefix)
-										//fromAddress, err = ss58.EncodeByPubHex(fromPk, ss58.PolkadotPrefix)
-										find = true
-										amount, err = strconv.ParseInt(extrinsic.Amount, 10, 64)
-									}
-								} else if find == true && extrinsic.Type == "remark" {
-									// validate fromAddress
-									if fromPk == extrinsic.FromAddress {
-										recipient = types.NewAccountID([]byte(extrinsic.ToAddress))
-									}
+								//Only System.batch(transfer + remark) -> extrinsic can be parsed
+								if extrinsic.Type == "multiSignBatch" {
+									amount, err = strconv.ParseInt(extrinsic.Amount, 10, 64)
+									recipient = types.NewAccountID([]byte(extrinsic.Recipient))
 								} else {
 									continue
 								}
-							}
-							fmt.Printf("BOOOOOOOOOOOOOM This is The No.%d MultiSignTransfer!!!!!!!!!!!!\n")
-							fmt.Printf("Hello,ready to send %d PDOT to %s!\n", amount, recipient)
 
-							//recipient := types.NewAccountID(common.FromHex("0xff93B45308FD417dF303D6515aB04D9e89a750Ca"))
-							// 3. construct parameters of message
-							fmt.Printf("before++, depositNonce is %#v\n", l.depositNonce[recipient])
-							//TODO:how to storage depositNonce
-							l.depositNonce[recipient]++
-							//TODO: update msg.Nonce
-							m := msg.NewFungibleTransfer(
-								fromChianId, // Unset
-								toChianId,
-								msg.Nonce(blockNumber),
-								big.NewInt(amount),
-								rId,
-								recipient[:],
-							)
-							l.submitMessage(m, err)
+								fmt.Printf("----------------------> Try to solve the No.%d MultiSignTransfer in currentBlock\n", bi)
+								fmt.Printf("ready to send %d PDOT to %s\n", amount, recipient)
+
+								//recipient := types.NewAccountID(common.FromHex("0xff93B45308FD417dF303D6515aB04D9e89a750Ca"))
+								// 3. construct parameters of message
+								//TODO:how to storage depositNonce
+								l.depositNonce[recipient]++
+								//TODO: update msg.Nonce
+								m := msg.NewFungibleTransfer(
+									fromChianId, // Unset
+									toChianId,
+									msg.Nonce(blockNumber),
+									big.NewInt(amount),
+									rId,
+									recipient[:],
+								)
+								l.submitMessage(m, err)
+								if err != nil {
+									fmt.Printf("submit Message to Alaya meet a err: %v\n", err)
+								}
+								fmt.Printf("<---------------------- finish the No.%d MultiSignTransfer in currentBlock\n", bi)
+							}
 						}
 					}
 				}
