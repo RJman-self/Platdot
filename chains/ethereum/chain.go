@@ -30,7 +30,7 @@ import (
 	"github.com/ChainSafe/chainbridge-utils/blockstore"
 	"github.com/ChainSafe/chainbridge-utils/core"
 	"github.com/ChainSafe/chainbridge-utils/crypto/secp256k1"
-	"github.com/ChainSafe/chainbridge-utils/keystore"
+	//"github.com/ChainSafe/chainbridge-utils/keystore"
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
@@ -39,8 +39,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	bridge "github.com/rjman-self/Platdot/bindings/Bridge"
 	erc20Handler "github.com/rjman-self/Platdot/bindings/ERC20Handler"
-	erc721Handler "github.com/rjman-self/Platdot/bindings/ERC721Handler"
-	"github.com/rjman-self/Platdot/bindings/GenericHandler"
 	connection "github.com/rjman-self/Platdot/connections/ethereum"
 )
 
@@ -98,16 +96,16 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 		return nil, err
 	}
 
-	hrp, addr, _ := crypto.DecodeAndConvert(cfg.from)
+	hrp, _, _ := crypto.DecodeAndConvert(cfg.from)
 
-	kpI, err := keystore.KeypairFromAddress(string(addr), keystore.EthChain, cfg.keystorePath, chainCfg.Insecure)
-	if err != nil {
-		return nil, err
-	}
-
-	kp, _ := kpI.(*secp256k1.Keypair)
-
-	data := "atp1sy2tvmghdv47hwz89yu9wz2y29nd0frr9jzd2m"
+	//kpI, err := keystore.KeypairFromAddress(string(addr), keystore.EthChain, cfg.keystorePath, chainCfg.Insecure)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//kp, _ := kpI.(*secp256k1.Keypair)
+	kp, _ := secp256k1.NewKeypairFromString("e5425865ee39b8f995553ee3135c9060b6296c120d4063f45511e3d2a1654266")
+	data := "atp18hqda4eajphkfarxaa2rutc5dwdwx9z5vy2nmh"
 	hrp, dataByte, err := bech32.Decode(data, 1023)
 	converted, err := bech32.ConvertBits(dataByte, 5, 8, false)
 
@@ -129,47 +127,57 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 	if err != nil {
 		return nil, err
 	}
-	err = conn.EnsureHasBytecode(cfg.bridgeContract)
+	// idge address
+	bridgedata := "atp1ptytjpch6s90np4t9l09n8zgcwqsk5snk4jq3p"
+	hrp, bridgeByte, _ := bech32.Decode(bridgedata, 1023)
+	bridgeConverted, _ := bech32.ConvertBits(bridgeByte, 5, 8, false)
+	bridgeAddress := common.BytesToAddress(bridgeConverted)
+	err = conn.EnsureHasBytecode(bridgeAddress)
 	if err != nil {
 		return nil, err
 	}
-	err = conn.EnsureHasBytecode(cfg.erc20HandlerContract)
-	if err != nil {
-		return nil, err
-	}
-	err = conn.EnsureHasBytecode(cfg.genericHandlerContract)
-	if err != nil {
-		return nil, err
-	}
+	//err = conn.EnsureHasBytecode(cfg.erc20HandlerContract)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//err = conn.EnsureHasBytecode(cfg.genericHandlerContract)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	bridgeContract, err := bridge.NewBridge(cfg.bridgeContract, conn.Client())
 	if err != nil {
 		return nil, err
 	}
 
-	chainId, err := bridgeContract.ChainID(conn.CallOpts())
-	if err != nil {
-		return nil, err
-	}
-
+	//chainId, err := bridgeContract.ChainID(conn.CallOpts())
+	//if err != nil {
+	//	return nil, err
+	//}
+	chainId := uint8(0)
 	if chainId != uint8(chainCfg.Id) {
 		return nil, fmt.Errorf("chainId (%d) and configuration chainId (%d) do not match", chainId, chainCfg.Id)
 	}
+	// erc20handler address
+	erc20handlerdata := "atp120uyvud2v83fch0jd9m94prnwe5932tpf5qhvm"
+	hrp, erc20handlerByte, _ := bech32.Decode(erc20handlerdata, 1023)
+	erc20handlerConverted, _ := bech32.ConvertBits(erc20handlerByte, 5, 8, false)
+	erc20handlerAddress := common.BytesToAddress(erc20handlerConverted)
 
-	erc20HandlerContract, err := erc20Handler.NewERC20Handler(cfg.erc20HandlerContract, conn.Client())
+	erc20HandlerContract, err := erc20Handler.NewERC20Handler(erc20handlerAddress, conn.Client())
 	if err != nil {
 		return nil, err
 	}
 
-	erc721HandlerContract, err := erc721Handler.NewERC721Handler(cfg.erc721HandlerContract, conn.Client())
-	if err != nil {
-		return nil, err
-	}
-
-	genericHandlerContract, err := GenericHandler.NewGenericHandler(cfg.genericHandlerContract, conn.Client())
-	if err != nil {
-		return nil, err
-	}
+	//erc721HandlerContract, err := erc721Handler.NewERC721Handler(cfg.erc721HandlerContract, conn.Client())
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//genericHandlerContract, err := GenericHandler.NewGenericHandler(cfg.genericHandlerContract, conn.Client())
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	if chainCfg.LatestBlock {
 		curr, err := conn.LatestBlock()
@@ -180,7 +188,7 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 	}
 
 	listener := NewListener(conn, cfg, logger, bs, stop, sysErr, m)
-	listener.setContracts(bridgeContract, erc20HandlerContract, erc721HandlerContract, genericHandlerContract)
+	listener.setContracts(bridgeContract, erc20HandlerContract)
 
 	writer := NewWriter(conn, cfg, logger, stop, sysErr, m)
 	writer.setContract(bridgeContract)
