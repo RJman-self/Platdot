@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ChainSafe/chainbridge-utils/crypto"
 	"math/big"
 	"sync"
 	"time"
@@ -82,10 +83,23 @@ func (c *Connection) Connect() error {
 
 // newTransactOpts builds the TransactOpts for the connection's keypair.
 func (c *Connection) newTransactOpts(value, gasLimit, gasPrice *big.Int) (*bind.TransactOpts, uint64, error) {
+
 	privateKey := c.kp.PrivateKey()
 	address := ethcrypto.PubkeyToAddress(privateKey.PublicKey)
+	fmt.Printf("%v\n", address.String())
 
-	nonce, err := c.conn.PendingNonceAt(context.Background(), address)
+	bech32addr, _ := crypto.ConvertAndEncode("atp", address.Bytes())
+
+	//converted, err := bech32.ConvertBits(data2, 8, 5, true)
+	//if err != nil {
+	//	fmt.Errorf("encoding bech32 failed: %w", err)
+	//}
+	//data3, err := bech32.Encode("atp", converted)
+	//fmt.Printf("%v\n", data3)
+
+	var bytes = []byte(bech32addr)
+	bech32address := ethcommon.BytesToAddress(bytes)
+	nonce, err := c.conn.PendingNonceAt(context.Background(), bech32address)
 	if err != nil {
 		return nil, 0, err
 	}

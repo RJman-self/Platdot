@@ -22,6 +22,9 @@ package ethereum
 
 import (
 	"fmt"
+	"github.com/ChainSafe/chainbridge-utils/crypto"
+	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+	"github.com/enigmampc/btcutil/bech32"
 	"math/big"
 
 	"github.com/ChainSafe/chainbridge-utils/blockstore"
@@ -95,11 +98,22 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 		return nil, err
 	}
 
-	kpI, err := keystore.KeypairFromAddress(cfg.from, keystore.EthChain, cfg.keystorePath, chainCfg.Insecure)
+	hrp, addr, _ := crypto.DecodeAndConvert(cfg.from)
+
+	kpI, err := keystore.KeypairFromAddress(string(addr), keystore.EthChain, cfg.keystorePath, chainCfg.Insecure)
 	if err != nil {
 		return nil, err
 	}
+
 	kp, _ := kpI.(*secp256k1.Keypair)
+
+	data := "atp1sy2tvmghdv47hwz89yu9wz2y29nd0frr9jzd2m"
+	hrp, dataByte, err := bech32.Decode(data, 1023)
+	converted, err := bech32.ConvertBits(dataByte, 5, 8, false)
+
+	//addr := types.NewAddressFromAccountID(converted)
+	data2 := types.HexEncodeToString(converted)
+	fmt.Printf("%v %v %v\n", hrp, converted, data2)
 
 	//kp, _ := kpI.(*sr25519.Keypair)
 
