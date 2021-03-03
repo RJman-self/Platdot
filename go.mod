@@ -21,7 +21,7 @@ require (
 	github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0
 	github.com/enigmampc/btcutil v1.0.3-0.20200723161021-e2fb6adb2a25
 	github.com/ethereum/go-ethereum v1.9.25
-	github.com/itering/scale.go v1.0.4
+	github.com/itering/scale.go v1.0.5
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/common v0.15.0 // indirect
