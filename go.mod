@@ -4,7 +4,7 @@ go 1.15
 
 replace github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0 => github.com/RJman-self/go-substrate-rpc-client/v2 v2.1.1-0.20210228105504-31eab1ed089b
 
-replace github.com/ethereum/go-ethereum v1.9.25 => /home/hacpy/GolandProjects/mod/go-ethereum
+replace github.com/ethereum/go-ethereum v1.9.25 => github.com/hacpy/go-ethereum v1.9.26-0.20210302014948-33a5c24805d3
 
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
@@ -25,7 +25,7 @@ require (
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/common v0.15.0 // indirect
-	github.com/rjman-self/go-polkadot-rpc-client v0.0.0-20210302074755-a1736a5f153d
+	github.com/rjman-self/go-polkadot-rpc-client v0.0.0-20210303072014-ed9674d8ea4f
 	github.com/rjmand/go-substrate-rpc-client/v2 v2.1.1-0.20210228120507-d15559aaddb1
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
