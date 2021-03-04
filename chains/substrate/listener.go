@@ -27,28 +27,25 @@ import (
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
 	"github.com/rjman-self/Platdot/chains"
-
-	iTypes "github.com/itering/scale.go/types"
 )
 
-type MultiSignTx struct {
-}
-
 type listener struct {
-	name          string
-	chainId       msg.ChainId
-	startBlock    uint64
-	blockstore    blockstore.Blockstorer
-	conn          *Connection
-	subscriptions map[eventName]eventHandler // Handlers for specific events
-	depositNonce  map[types.AccountID]int    //记录每个账户交易的nonce
-	router        chains.Router
-	log           log15.Logger
-	stop          <-chan int
-	sysErr        chan<- error
-	latestBlock   metrics.LatestBlock
-	metrics       *metrics.ChainMetrics
-	client        client.Client
+	name           string
+	chainId        msg.ChainId
+	startBlock     uint64
+	blockStore     blockstore.Blockstorer
+	conn           *Connection
+	subscriptions  map[eventName]eventHandler // Handlers for specific events
+	depositNonce   map[types.AccountID]int    //记录每个账户交易的nonce
+	router         chains.Router
+	log            log15.Logger
+	stop           <-chan int
+	sysErr         chan<- error
+	latestBlock    metrics.LatestBlock
+	metrics        *metrics.ChainMetrics
+	client         client.Client
+	msTxStatistics MultiSignTxStatistics
+	msTxAsMulti    map[MultiSignTx]MultiSigAsMulti
 }
 
 // Frequency of polling for a new block
@@ -59,57 +56,21 @@ var chainSub = 1
 var chainAlaya = 0
 var MultiSignAddress = "0xbc1d0c69609ecf7cf6513415502b96247cf1747bfde31427462b2406d2f13746"
 
-// UtilityBatchCall Utility Batch Call
-type UtilityBatchCall struct {
-	CallIndex    string                  `json:"call_index"`
-	CallFunction string                  `json:"call_function"`
-	CallModule   string                  `json:"call_module"`
-	CallArgs     []iTypes.ExtrinsicParam `json:"call_args"`
-}
+func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,
+	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics) *listener {
 
-// DispatchInfo
-type DispatchInfo struct {
-	// Weight of this transaction
-	Weight float64 `json:"weight"`
-	// Class of this transaction
-	Class string `json:"class"`
-	// PaysFee indicates whether this transaction pays fees
-	PartialFee string `json:"partialFee"`
-}
-
-// AccountInfo data}
-type AccountInfo struct {
-	Nonce    types.U32
-	Refcount types.U32
-	Data     struct {
-		Free       types.U128
-		Reserved   types.U128
-		MiscFrozen types.U128
-		FreeFrozen types.U128
-	}
-}
-
-func findModule(metadata *types.Metadata, index types.CallIndex) types.FunctionMetadataV4 {
-	for _, mod := range metadata.AsMetadataV12.Modules {
-		if mod.Index == index.SectionIndex {
-			fmt.Println("Find module  ", mod.Name)
-			return mod.Calls[index.MethodIndex]
-		}
-	}
-	panic("Unknown call")
-}
-
-func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer, stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics) *listener {
 	c, err := client.New(url)
 	if err != nil {
 		panic(err)
 	}
 	c.SetPrefix(ss58.PolkadotPrefix)
+
+	var multiSigAsMulti map[MultiSignTx]MultiSigAsMulti
 	return &listener{
 		name:          name,
 		chainId:       id,
 		startBlock:    startBlock,
-		blockstore:    bs,
+		blockStore:    bs,
 		conn:          conn,
 		subscriptions: make(map[eventName]eventHandler),
 		depositNonce:  make(map[types.AccountID]int),
@@ -119,6 +80,7 @@ func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint6
 		latestBlock:   metrics.LatestBlock{LastUpdated: time.Now()},
 		metrics:       m,
 		client:        *c,
+		msTxAsMulti:   multiSigAsMulti,
 	}
 }
 
@@ -150,7 +112,6 @@ func (l *listener) start() error {
 			l.log.Error("Polling blocks failed", "err", err)
 		}
 	}()
-
 	return nil
 }
 
@@ -168,11 +129,6 @@ var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
 // pollBlocks will poll for the latest block and proceed to parse the associated events as it sees new blocks.
 // Polling begins at the block defined in `l.startBlock`. Failed attempts to fetch the latest block or parse
 // a block will be retried up to BlockRetryLimit times before returning with an error.
-
-func (l *listener) pollAllBlocks() error {
-	return nil
-}
-
 func (l *listener) pollBlocks() error {
 	var currentBlock = l.startBlock
 	// assume TestKeyringPairBob.PublicKey is a multisign address
@@ -328,20 +284,39 @@ func (l *listener) pollBlocks() error {
 					fmt.Printf("\tBalances:Deposit:: (phase=%#v)\n", e.Phase)
 					fmt.Printf("\t\t%v, %v\n", e.Who, e.Balance)
 				}
-
-				//for _, e := range events.System_ExtrinsicSuccess {
-				//	fmt.Printf("\tSystem:ExtrinsicSuccess:: (phase=%#v)\n", e.Phase)
-				//}
-				//for _, e := range events.System_ExtrinsicFailed {
-				//	fmt.Printf("\tSystem:ErtrinsicFailed:: (phase=%#v)\n", e.Phase)
-				//	fmt.Printf("\t\t%v\n", e.DispatchError)
-				//}
-
-				var multiSigner = map[types.AccountID]bool{}
 				for _, e := range events.Multisig_NewMultisig {
-					multiSigner[e.Who] = true
 					fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
 					fmt.Printf("\t\tFrom:%v,To: %v\n", e.Who, e.ID)
+
+					// 1. derive Extrinsics of Block
+					resp, err := l.client.GetBlockByNumber(int64(currentBlock))
+					if err != nil {
+						panic(err)
+					}
+
+					var msTxAsMulti = MultiSigAsMulti{}
+
+					for _, extrinsic := range resp.Extrinsic {
+						if extrinsic.Type == "as_multi" {
+							l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(extrinsic.ExtrinsicIndex)
+							l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(block.Block.Header.Number)
+							msTxAsMulti.Executed = false
+							msTxAsMulti.Threshold = extrinsic.MultiSigAsMulti.Threshold
+							msTxAsMulti.OtherSignatories = extrinsic.MultiSigAsMulti.OtherSignatories
+							msTxAsMulti.MaybeTimePoint = extrinsic.MultiSigAsMulti.MaybeTimePoint
+							msTxAsMulti.DestAddress = extrinsic.MultiSigAsMulti.DestAddress
+							msTxAsMulti.DestAmount = extrinsic.MultiSigAsMulti.DestAmount
+							msTxAsMulti.StoreCall = extrinsic.MultiSigAsMulti.StoreCall
+							msTxAsMulti.MaxWeight = extrinsic.MultiSigAsMulti.MaxWeight
+							//amount, err = strconv.ParseInt(extrinsic.Amount, 10, 64)
+							//recipient = types.NewAccountID([]byte(extrinsic.Recipient))
+						} else {
+							continue
+						}
+					}
+					msTxAsMulti.OriginMsTx = l.msTxStatistics.CurrentTx
+					l.msTxAsMulti[l.msTxStatistics.CurrentTx] = msTxAsMulti
+					l.msTxStatistics.TotalCount++
 				}
 
 				for _, e := range events.Multisig_MultisigApproval {
@@ -350,27 +325,39 @@ func (l *listener) pollBlocks() error {
 				for _, e := range events.Multisig_MultisigExecuted {
 					fmt.Printf("\tSystem:detect new multisign Executed:: (phase=%#v)\n", e.Phase)
 					fmt.Printf("\t\tFrom:%v,To: %v\n", e.Who, e.ID)
+
+					// 1. derive Extrinsics of Block
+					resp, err := l.client.GetBlockByNumber(int64(currentBlock))
+					if err != nil {
+						panic(err)
+					}
+
+					for _, extrinsic := range resp.Extrinsic {
+						if extrinsic.Type == "as_multi" {
+
+						}
+					}
+
 				}
 				for _, e := range events.Multisig_MultisigCancelled {
 					fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
 				}
+
+				//Triggered a cross-chain transaction
 				if events.Utility_BatchCompleted != nil {
 					for bi, e := range events.Balances_Transfer {
 						// If BatchCompleted and multiAccount Balance Changed => MultiSignTransfer
 						if e.To == multiSignAccount {
 							fmt.Printf("----------------------------------------Succeed catch a tx to mulsigAddress----------------------------------------\n")
-							// 1. derive Extrinsics of Block
+							// 1. derive Extrinsic of Block
 							resp, err := l.client.GetBlockByNumber(int64(currentBlock))
 							if err != nil {
 								panic(err)
 							}
 
-							//d, _ := json.Marshal(resp)
-							//fmt.Println(string(d))
-
-							// 2. validate and get essential patameters of message
-							var fromChianId = msg.ChainId(chainSub)
-							var toChianId = msg.ChainId(chainAlaya)
+							// 2. validate and get essential parameters of message
+							var fromChainId = msg.ChainId(chainSub)
+							var toChainId = msg.ChainId(chainAlaya)
 							var rId = msg.ResourceIdFromSlice(common.FromHex(AKSM))
 							var recipient types.AccountID
 							var amount int64
@@ -394,8 +381,8 @@ func (l *listener) pollBlocks() error {
 								l.depositNonce[recipient]++
 								//TODO: update msg.Nonce
 								m := msg.NewFungibleTransfer(
-									fromChianId, // Unset
-									toChianId,
+									fromChainId, // Unset
+									toChainId,
 									msg.Nonce(blockNumber),
 									big.NewInt(amount),
 									rId,
@@ -410,74 +397,12 @@ func (l *listener) pollBlocks() error {
 						}
 					}
 				}
-				// Loop through successful batch utility events
-				for _, e := range events.Utility_BatchCompleted {
-					fmt.Printf("\tSystem:detect new Utility_BatchCompleted request::(phase=%#v)\n", e.Phase)
-					fmt.Printf("\tSystem:detect new Utility_BatchCompleted request::(Topics=%#v)\n", e.Topics)
-
-					// Get the Extrinsic
-					//ext := block.Block.Extrinsics[int(event.Phase.AsApplyExtrinsic)]
-					//fmt.Println("Batch Transaction: ext: ", ext)
-					////resInter := DispatchInfo{}
-					//accountID := ext.Signature.Signer.AsAccountID[:]
-					//sender, err := subkey.SS58Address(accountID, uint8(42))
-					//if err != nil {
-					//	return err
-					//}
-					//
-					//fmt.Println("sender: ", sender)
-					//
-					//decoder := scale.NewDecoder(bytes.NewReader(ext.Method.Args))
-					//n, err := decoder.DecodeUintCompact()
-					//if err != nil {
-					//	return err
-					//}
-					//
-					//callIndex := types.CallIndex{}
-					//err = decoder.Decode(&callIndex)
-					//if err != nil {
-					//	panic(err)
-					//}
-
-					//callFunction := findModule(meta, callIndex)
-					//
-					//for _, callArg := range callFunction.Args {
-					//	if callArg.Type == "<T::Lookup as StaticLookup>::Source" {
-					//		var argValue = types.AccountID{}
-					//		_ = decoder.Decode(&argValue)
-					//		ss58, _ := subkey.SS58Address(argValue[:], uint8(42))
-					//		fmt.Println(callArg.Name, " = ", ss58)
-					//		//txInItem.To = ss58
-					//	} else if callArg.Type == "Compact<T::Balance>" {
-					//		var argValue = types.UCompact{}
-					//		_ = decoder.Decode(&argValue)
-					//		fmt.Println(callArg.Name, " = ", argValue)
-					//		argValueBigInt := big.Int(argValue)
-					//		amount := new(big.Int)
-					//		amount, ok := amount.SetString(argValueBigInt.String(), 10)
-					//		if !ok {
-					//			return fmt.Errorf("BXL: failed: unable to set amount string")
-					//		}
-					//		//coin := Coin{DOTAsset, amount}
-					//		//txInItem.Coins = append(txInItem.Coins, coin)
-					//	} else if callArg.Type == "Vec<u8>" {
-					//		var argValue = types.Bytes{}
-					//		// hex.DecodeString(a.Value.(string))
-					//		_ = decoder.Decode(&argValue)
-					//		value := string(argValue)
-					//		fmt.Println("BXL: FetchTxs: Vec<u8> ", callArg.Name, "=", value)
-					//		//txInItem.Memo = value
-					//	}
-					//}
-
-					//fmt.Printf("n = %d\n", n)
-				}
 			}
 
-			// Write to blockstore
-			err = l.blockstore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
+			// Write to blockStore
+			err = l.blockStore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
 			if err != nil {
-				l.log.Error("Failed to write to blockstore", "err", err)
+				l.log.Error("Failed to write to blockStore", "err", err)
 			}
 
 			if l.metrics != nil {
@@ -557,10 +482,10 @@ func (l *listener) pollBlocks() error {
 //				continue
 //			}
 //
-//			// Write to blockstore
-//			err = l.blockstore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
+//			// Write to blockStore
+//			err = l.blockStore.StoreBlock(big.NewInt(0).SetUint64(currentBlock))
 //			if err != nil {
-//				l.log.Error("Failed to write to blockstore", "err", err)
+//				l.log.Error("Failed to write to blockStore", "err", err)
 //			}
 //
 //			if l.metrics != nil {

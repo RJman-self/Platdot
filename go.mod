@@ -25,7 +25,7 @@ require (
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/common v0.15.0 // indirect
-	github.com/rjman-self/go-polkadot-rpc-client v0.0.0-20210303072014-ed9674d8ea4f
+	github.com/rjman-self/go-polkadot-rpc-client v0.0.0-20210304082244-12e2ea73e294
 	github.com/rjmand/go-substrate-rpc-client/v2 v2.1.1-0.20210228120507-d15559aaddb1
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0

@@ -45,7 +45,7 @@ type Chain struct {
 	stop     chan<- int
 }
 
-// checkBlockstore queries the blockstore for the latest known block. If the latest block is
+// checkBlockstore queries the blockStore for the latest known block. If the latest block is
 // greater than startBlock, then the latest block is returned, otherwise startBlock is.
 func checkBlockstore(bs *blockstore.Blockstore, startBlock uint64) (uint64, error) {
 	latestBlock, err := bs.TryLoadLatestBlock()

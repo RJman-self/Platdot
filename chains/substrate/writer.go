@@ -44,7 +44,7 @@ type writer struct {
 	//name          string
 	//chainId       msg.ChainId
 	//startBlock    uint64
-	//blockstore    blockstore.Blockstorer
+	//blockStore    blockStore.Blockstorer
 	//stop          <-chan int
 	//latestBlock   metrics.LatestBlock
 	//client        client.Client
@@ -131,21 +131,20 @@ func (w *writer) redeemTx(m msg.Message) error {
 
 	var otherSignatories = []types.AccountID{Bob.AsAccountID, Alice.AsAccountID}
 
-	//type TimePointSafe32 struct {
-	//	Height types.OptionU32
-	//	Index  types.U32
-	//}
-	//
-	//var value = types.NewOptionU32(15)
-
-	//var maybeTimePoint = TimePointSafe32{
-	//	Height: value,
-	//	Index:  1,
-	//}
-
-	var maybeTimePoint []byte
-	var maxWeight = types.Weight(222521000)
-
+	destAddress := string(recipient.AsID[:])
+	//find a exist MultiSignTxEvent
+	var maybeTimePoint interface{}
+	var maxWeight interface{}
+	for _, ms := range w.listener.msTxAsMulti {
+		if !ms.Executed && ms.DestAddress == destAddress && ms.DestAmount == bigAmt.String() {
+			maybeTimePoint = ms.MaybeTimePoint
+			maxWeight = ms.MaxWeight
+			break
+		} else {
+			maybeTimePoint = []byte{}
+			maxWeight = types.Weight(0)
+		}
+	}
 	//END: Create a call of transfer
 
 	mc, err := types.NewCall(
