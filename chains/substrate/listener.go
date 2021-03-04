@@ -6,6 +6,8 @@ package substrate
 import (
 	"errors"
 	"fmt"
+
+	//_ "github.com/ChainSafe/chainbridge-utils/crypto"
 	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rjman-self/go-polkadot-rpc-client/client"
@@ -380,10 +382,16 @@ func (l *listener) pollBlocks() error {
 								//TODO:how to storage depositNonce
 								l.depositNonce[recipient]++
 								//TODO: update msg.Nonce
+
+								depositNoceA := strconv.FormatInt(int64(currentBlock), 10)
+								depositNoceB := strconv.FormatInt(int64(extrinsic.ExtrinsicIndex), 10)
+								deposit := depositNoceA + depositNoceB
+								depositNonce, _ := strconv.ParseInt(deposit, 10, 64)
+
 								m := msg.NewFungibleTransfer(
 									fromChainId, // Unset
 									toChainId,
-									msg.Nonce(blockNumber),
+									msg.Nonce(depositNonce),
 									big.NewInt(amount),
 									rId,
 									recipient[:],

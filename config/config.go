@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
+
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli/v2"
 )
@@ -86,10 +87,10 @@ func (c *Config) validate() error {
 		if chain.From[:3] == "atp" {
 			chain.From = ethcommon.PlatonToEth(chain.From)
 		}
-		if chain.Opts["bridge"][:3] == "atp" {
+		if len(chain.Opts["bridge"]) != 0 && chain.Opts["bridge"][:3] == "atp" {
 			chain.Opts["bridge"] = ethcommon.PlatonToEth(chain.Opts["bridge"])
 		}
-		if chain.Opts["erc20Handler"][:3] == "atp" {
+		if len(chain.Opts["erc20Handler"]) != 0 && chain.Opts["erc20Handler"][:3] == "atp" {
 			chain.Opts["erc20Handler"] = ethcommon.PlatonToEth(chain.Opts["erc20Handler"])
 		}
 	}

@@ -79,7 +79,6 @@ func (w *writer) redeemTx(m msg.Message) error {
 		Address:   RelayerAddress,
 		PublicKey: RelayerPublicKey,
 	}
-
 	fmt.Printf("============= relayer =====================\n")
 	fmt.Printf("Relayer keyring: %v\n", sss)
 	fmt.Printf("Relayer keyring.PublicKey: %v\n", RelayerPublicKey)
