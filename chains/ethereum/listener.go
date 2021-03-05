@@ -165,6 +165,8 @@ func (l *listener) pollBlocks() error {
 // getDepositEventsForBlock looks for the deposit event in the latest block
 func (l *listener) getDepositEventsForBlock(latestBlock *big.Int) error {
 	l.log.Debug("Querying block for deposit events", "block", latestBlock)
+
+	//bridgeAddress, _ := ethcommon.PlatonToEth(string(l.cfg.bridgeContract[:]))
 	query := buildQuery(l.cfg.bridgeContract, utils.Deposit, latestBlock, latestBlock)
 
 	// querying for logs

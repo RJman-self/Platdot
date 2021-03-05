@@ -31,6 +31,9 @@ var ErrFatalQuery = errors.New("query of chain state failed")
 // proposalIsComplete returns true if the proposal state is either Passed, Transferred or Cancelled
 func (w *writer) proposalIsComplete(srcId msg.ChainId, nonce msg.Nonce, dataHash [32]byte) bool {
 	prop, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), uint8(srcId), uint64(nonce), dataHash)
+
+	//prop, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), 1, 967551, data)
+
 	if err != nil {
 		w.log.Error("Failed to check proposal existence", "err", err)
 		return false
@@ -92,15 +95,15 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 	data := ConstructErc20ProposalData(m.Payload[0].([]byte), m.Payload[1].([]byte))
 	dataHash := utils.Hash(append(w.cfg.erc20HandlerContract.Bytes(), data...))
 
-	if !w.shouldVote(m, dataHash) {
-		if w.proposalIsPassed(m.Source, m.DepositNonce, dataHash) {
-			// We should not vote for this proposal but it is ready to be executed
-			w.executeProposal(m, data, dataHash)
-			return true
-		} else {
-			return false
-		}
-	}
+	//if !w.shouldVote(m, dataHash) {
+	//	if w.proposalIsPassed(m.Source, m.DepositNonce, dataHash) {
+	//		// We should not vote for this proposal but it is ready to be executed
+	//		w.executeProposal(m, data, dataHash)
+	//		return true
+	//	} else {
+	//		return false
+	//	}
+	//}
 
 	// Capture latest block so when know where to watch from
 	latestBlock, err := w.conn.LatestBlock()
@@ -113,7 +116,7 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 	go w.watchThenExecute(m, data, dataHash, latestBlock)
 
 	w.voteProposal(m, dataHash)
-
+	//w.executeProposal(m, data, dataHash)
 	return true
 }
 
@@ -269,7 +272,7 @@ func (w *writer) voteProposal(m msg.Message, dataHash [32]byte) {
 				if w.metrics != nil {
 					w.metrics.VotesSubmitted.Inc()
 				}
-				return
+				//return
 			} else if err.Error() == ErrNonceTooLow.Error() || err.Error() == ErrTxUnderpriced.Error() {
 				w.log.Debug("Nonce too low, will retry")
 				time.Sleep(TxRetryInterval)

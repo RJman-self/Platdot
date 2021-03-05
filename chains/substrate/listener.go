@@ -53,7 +53,7 @@ type listener struct {
 // Frequency of polling for a new block
 var BlockRetryInterval = time.Second * 5
 var BlockRetryLimit = 5
-var AKSM = "0x000000000000000000000000000000c76ebe4a02bbc34786d860b355f5a5ce00"
+var AKSM = "0x0000000000000000000000000000000000000000000000000000000000000000"
 var chainSub = 1
 var chainAlaya = 0
 var MultiSignAddress = "0xbc1d0c69609ecf7cf6513415502b96247cf1747bfde31427462b2406d2f13746"
@@ -162,14 +162,14 @@ func (l *listener) pollBlocks() error {
 
 	defer sub.Unsubscribe()
 
-	var count = 0
+	//var count = 0
 	for {
 		select {
 		case <-l.stop:
 			return errors.New("terminated")
 		default:
-			count += 1
-			fmt.Printf("poll count = %d\n", count)
+			//count += 1
+			//fmt.Printf("poll count = %d\n", count)
 
 			// Get finalized block hash
 			finalizedHash, err := api.RPC.Chain.GetFinalizedHead()
@@ -202,15 +202,15 @@ func (l *listener) pollBlocks() error {
 				continue
 			}
 
-			fmt.Printf("block hash is %v\n", hash)
+			//fmt.Printf("block hash is %v\n", hash)
 			block, err := api.RPC.Chain.GetBlock(hash)
 
 			if err != nil {
 				panic(err)
 			}
 
-			var blockNumber = int64(block.Block.Header.Number)
-			fmt.Printf("block# %d\n", blockNumber)
+			//var blockNumber = int64(block.Block.Header.Number)
+			//fmt.Printf("block# %d\n", blockNumber)
 
 			//blockFinalize, err := l.conn.api.RPC.Chain.SubscribeFinalizedHeads()
 			//fmt.Printf("block:\n%v\n", blockFinalize)
@@ -363,6 +363,7 @@ func (l *listener) pollBlocks() error {
 							var rId = msg.ResourceIdFromSlice(common.FromHex(AKSM))
 							var recipient []byte
 							var amount int64
+							var depositNoceA, depositNoceB string
 
 							//derive information from block
 							for _, extrinsic := range resp.Extrinsic {
@@ -370,38 +371,36 @@ func (l *listener) pollBlocks() error {
 								if extrinsic.Type == "multiSignBatch" {
 									amount, err = strconv.ParseInt(extrinsic.Amount, 10, 64)
 									recipient = []byte(extrinsic.Recipient)
+									depositNoceA = strconv.FormatInt(int64(currentBlock), 10)
+									depositNoceB = strconv.FormatInt(int64(extrinsic.ExtrinsicIndex), 10)
 								} else {
 									continue
 								}
-
-								fmt.Printf("----------------------> Try to solve the No.%d MultiSignTransfer in currentBlock\n", bi)
-								fmt.Printf("ready to send %d PDOT to %s\n", amount, recipient)
-
-								//recipient := types.NewAccountID(common.FromHex("0xff93B45308FD417dF303D6515aB04D9e89a750Ca"))
-								// 3. construct parameters of message
-								//TODO:how to storage depositNonce
-								//l.depositNonce[recipient]++
-								//TODO: update msg.Nonce
-
-								depositNoceA := strconv.FormatInt(int64(currentBlock), 10)
-								depositNoceB := strconv.FormatInt(int64(extrinsic.ExtrinsicIndex), 10)
-								deposit := depositNoceA + depositNoceB
-								depositNonce, _ := strconv.ParseInt(deposit, 10, 64)
-
-								m := msg.NewFungibleTransfer(
-									fromChainId, // Unset
-									toChainId,
-									msg.Nonce(depositNonce),
-									big.NewInt(amount),
-									rId,
-									recipient,
-								)
-								l.submitMessage(m, err)
-								if err != nil {
-									fmt.Printf("submit Message to Alaya meet a err: %v\n", err)
-								}
-								fmt.Printf("<---------------------- finish the No.%d MultiSignTransfer in currentBlock\n", bi)
 							}
+							fmt.Printf("----------------------> Try to solve the No.%d MultiSignTransfer in currentBlock\n", bi)
+							fmt.Printf("ready to send %d PDOT to %s\n", amount, recipient)
+
+							//recipient := types.NewAccountID(common.FromHex("0xff93B45308FD417dF303D6515aB04D9e89a750Ca"))
+							// 3. construct parameters of message
+							//TODO:how to storage depositNonce
+							//l.depositNonce[recipient]++
+							//TODO: update msg.Nonce
+							deposit := depositNoceA + depositNoceB
+							depositNonce, _ := strconv.ParseInt(deposit, 10, 64)
+
+							m := msg.NewFungibleTransfer(
+								fromChainId, // Unset
+								toChainId,
+								msg.Nonce(depositNonce),
+								big.NewInt(amount),
+								rId,
+								recipient,
+							)
+							l.submitMessage(m, err)
+							if err != nil {
+								fmt.Printf("submit Message to Alaya meet a err: %v\n", err)
+							}
+							fmt.Printf("<---------------------- finish the No.%d MultiSignTransfer in currentBlock\n", bi)
 						}
 					}
 				}

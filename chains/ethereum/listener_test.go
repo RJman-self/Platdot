@@ -17,8 +17,6 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/rjman-self/Platdot/bindings/Bridge"
 	"github.com/rjman-self/Platdot/bindings/ERC20Handler"
-	"github.com/rjman-self/Platdot/bindings/ERC721Handler"
-	"github.com/rjman-self/Platdot/bindings/GenericHandler"
 	utils "github.com/rjman-self/Platdot/shared/ethereum"
 	ethtest "github.com/rjman-self/Platdot/shared/ethereum/testing"
 )
@@ -55,18 +53,18 @@ func createTestListener(t *testing.T, config *Config, contracts *utils.DeployedC
 	if err != nil {
 		t.Fatal(err)
 	}
-	erc721HandlerContract, err := ERC721Handler.NewERC721Handler(newConfig.erc721HandlerContract, conn.Client())
-	if err != nil {
-		t.Fatal(err)
-	}
-	genericHandlerContract, err := GenericHandler.NewGenericHandler(newConfig.genericHandlerContract, conn.Client())
-	if err != nil {
-		t.Fatal(err)
-	}
+	//erc721HandlerContract, err := ERC721Handler.NewERC721Handler(newConfig.erc721HandlerContract, conn.Client())
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
+	//genericHandlerContract, err := GenericHandler.NewGenericHandler(newConfig.genericHandlerContract, conn.Client())
+	//if err != nil {
+	//	t.Fatal(err)
+	//}
 
 	router := &MockRouter{msgs: make(chan msg.Message)}
 	listener := NewListener(conn, &newConfig, TestLogger, &blockstore.EmptyStore{}, stop, sysErr, nil)
-	listener.setContracts(bridgeContract, erc20HandlerContract, erc721HandlerContract, genericHandlerContract)
+	listener.setContracts(bridgeContract, erc20HandlerContract)
 	listener.setRouter(router)
 	// Start the listener
 	err = listener.start()

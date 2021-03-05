@@ -90,11 +90,13 @@ func (c *Config) validate() error {
 		}
 		if len(chain.Opts["bridge"]) != 0 && chain.Opts["bridge"][:3] == "atp" {
 			addr, _ := ethcommon.PlatonToEth(chain.Opts["bridge"])
-			chain.Opts["bridge"] = string(addr)
+			address := ethcommon.BytesToAddress(addr)
+			chain.Opts["bridge"] = address.String()
 		}
 		if len(chain.Opts["erc20Handler"]) != 0 && chain.Opts["erc20Handler"][:3] == "atp" {
 			addr, _ := ethcommon.PlatonToEth(chain.Opts["erc20Handler"])
-			chain.Opts["erc20Handler"] = string(addr)
+			address := ethcommon.BytesToAddress(addr)
+			chain.Opts["erc20Handler"] = address.String()
 		}
 	}
 	return nil

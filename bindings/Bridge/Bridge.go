@@ -629,14 +629,28 @@ func (_Bridge *BridgeCallerSession) TotalRelayers() (*big.Int, error) {
 // Solidity: function getProposal(uint8 originChainID, uint64 depositNonce, bytes32 dataHash) view returns((bytes32,bytes32,address[],address[],uint8,uint256))
 func (_Bridge *BridgeCaller) GetProposal(opts *bind.CallOpts, originChainID uint8, depositNonce uint64, dataHash [32]byte) (BridgeProposal, error) {
 	var out []interface{}
+
 	err := _Bridge.contract.Call(opts, &out, "getProposal", originChainID, depositNonce, dataHash)
+
+	//data := []byte("0x13dedb5980ca62ef0aac12321bdadb0594a2828f6b11357d9d4925ce549f317e")
+	//var dataId [32]byte
+	//copy(dataId[:], data)
+	//fmt.Printf("data is %v\n", data)
+	//fmt.Printf("normal dataId is %v\n",dataId)
+	//fmt.Printf("dataHash is %v\n", dataHash)
+
+	//
+	//var data [32]byte
+	//rawRata := common.Hex2Bytes("0x13dedb5980ca62ef0aac12321bdadb0594a2828f6b11357d9d4925ce549f317e")
+	//copy(data[:], rawRata)
+	//
+	//err := _Bridge.contract.Call(opts, &out, "getProposal", uint8(1), uint64(967551), data)
 
 	if err != nil {
 		return *new(BridgeProposal), err
 	}
 
 	out0 := *abi.ConvertType(out[0], new(BridgeProposal)).(*BridgeProposal)
-
 	return out0, err
 
 }

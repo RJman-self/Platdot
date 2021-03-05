@@ -82,7 +82,6 @@ func (c *Connection) Connect() error {
 
 // newTransactOpts builds the TransactOpts for the connection's keypair.
 func (c *Connection) newTransactOpts(value, gasLimit, gasPrice *big.Int) (*bind.TransactOpts, uint64, error) {
-
 	privateKey := c.kp.PrivateKey()
 	address := ethcrypto.PubkeyToAddress(privateKey.PublicKey)
 	fmt.Printf("%v\n", address.String())
@@ -92,7 +91,7 @@ func (c *Connection) newTransactOpts(value, gasLimit, gasPrice *big.Int) (*bind.
 		return nil, 0, err
 	}
 
-	id := big.NewInt(0)
+	id := big.NewInt(201018)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, id)
 	if err != nil {
 		return nil, 0, err
