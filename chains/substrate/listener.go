@@ -361,7 +361,7 @@ func (l *listener) pollBlocks() error {
 							var fromChainId = msg.ChainId(chainSub)
 							var toChainId = msg.ChainId(chainAlaya)
 							var rId = msg.ResourceIdFromSlice(common.FromHex(AKSM))
-							var recipient types.AccountID
+							var recipient []byte
 							var amount int64
 
 							//derive information from block
@@ -369,7 +369,7 @@ func (l *listener) pollBlocks() error {
 								//Only System.batch(transfer + remark) -> extrinsic can be parsed
 								if extrinsic.Type == "multiSignBatch" {
 									amount, err = strconv.ParseInt(extrinsic.Amount, 10, 64)
-									recipient = types.NewAccountID([]byte(extrinsic.Recipient))
+									recipient = []byte(extrinsic.Recipient)
 								} else {
 									continue
 								}
@@ -380,7 +380,7 @@ func (l *listener) pollBlocks() error {
 								//recipient := types.NewAccountID(common.FromHex("0xff93B45308FD417dF303D6515aB04D9e89a750Ca"))
 								// 3. construct parameters of message
 								//TODO:how to storage depositNonce
-								l.depositNonce[recipient]++
+								//l.depositNonce[recipient]++
 								//TODO: update msg.Nonce
 
 								depositNoceA := strconv.FormatInt(int64(currentBlock), 10)
@@ -394,7 +394,7 @@ func (l *listener) pollBlocks() error {
 									msg.Nonce(depositNonce),
 									big.NewInt(amount),
 									rId,
-									recipient[:],
+									recipient,
 								)
 								l.submitMessage(m, err)
 								if err != nil {

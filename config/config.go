@@ -85,13 +85,16 @@ func (c *Config) validate() error {
 			return fmt.Errorf("required field chain.From empty for chain %s", chain.Id)
 		}
 		if chain.From[:3] == "atp" {
-			chain.From = ethcommon.PlatonToEth(chain.From)
+			addr, _ := ethcommon.PlatonToEth(chain.From)
+			chain.From = string(addr)
 		}
 		if len(chain.Opts["bridge"]) != 0 && chain.Opts["bridge"][:3] == "atp" {
-			chain.Opts["bridge"] = ethcommon.PlatonToEth(chain.Opts["bridge"])
+			addr, _ := ethcommon.PlatonToEth(chain.Opts["bridge"])
+			chain.Opts["bridge"] = string(addr)
 		}
 		if len(chain.Opts["erc20Handler"]) != 0 && chain.Opts["erc20Handler"][:3] == "atp" {
-			chain.Opts["erc20Handler"] = ethcommon.PlatonToEth(chain.Opts["erc20Handler"])
+			addr, _ := ethcommon.PlatonToEth(chain.Opts["erc20Handler"])
+			chain.Opts["erc20Handler"] = string(addr)
 		}
 	}
 	return nil

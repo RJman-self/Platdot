@@ -4,6 +4,7 @@
 package ethereum
 
 import (
+	"fmt"
 	"github.com/ChainSafe/chainbridge-utils/core"
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
 	"github.com/ChainSafe/chainbridge-utils/msg"
@@ -54,8 +55,13 @@ func (w *writer) setContract(bridge *Bridge.Bridge) {
 // ResolveMessage handles any given message based on type
 // A bool is returned to indicate failure/success, this should be ignored except for within tests.
 func (w *writer) ResolveMessage(m msg.Message) bool {
-	w.log.Info("Attempting to resolve message", "type", m.Type, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce, "rId", m.ResourceId.Hex())
-	m.Payload[1] = []byte(ethcommon.PlatonToEth(string(m.Payload[1].([]byte))))
+	w.log.Info("Attempting to resolve message", "type", m.Type, "src", m.Source, "dst", m.Destination, "nonce", m.DepositNonce, "rId", m.ResourceId.Hex(), "recipient", m.Payload[1])
+
+	atp := string(m.Payload[1].([]byte))
+	eth, _ := ethcommon.PlatonToEth(atp)
+	platon, _ := ethcommon.EthToPlaton(eth)
+	fmt.Printf("writer msg =>\natp is %v\n0x is %v\neth is %s\nplaton is %v\nethToatp is %v\n", atp, eth, eth, platon)
+
 	switch m.Type {
 	case msg.FungibleTransfer:
 		return w.createErc20Proposal(m)
