@@ -352,6 +352,7 @@ func (_Bridge *BridgeSession) DepositRecords(arg0 uint64, arg1 uint8) ([]byte, e
 // Solidity: function _depositRecords(uint64 , uint8 ) view returns(bytes)
 func (_Bridge *BridgeCallerSession) DepositRecords(arg0 uint64, arg1 uint8) ([]byte, error) {
 	return _Bridge.Contract.DepositRecords(&_Bridge.CallOpts, arg0, arg1)
+	return _Bridge.Contract.DepositRecords(&_Bridge.CallOpts, arg0, arg1)
 }
 
 // Expiry is a free data retrieval call binding the contract method 0xc5ec8970.

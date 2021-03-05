@@ -22,6 +22,7 @@ package ethereum
 
 import (
 	"fmt"
+	utils "github.com/rjman-self/Platdot/shared/ethereum"
 	"math/big"
 
 	"github.com/ChainSafe/chainbridge-utils/blockstore"
@@ -142,7 +143,16 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 
 	writer := NewWriter(conn, cfg, logger, stop, sysErr, m)
 	writer.setContract(bridgeContract)
-
+	data := utils.ConstructErc20DepositData(cfg.erc20HandlerContract.Bytes(), big.NewInt(1000000000000000000))
+	conn.Opts().Nonce = conn.Opts().Nonce.Add(conn.Opts().Nonce, big.NewInt(1))
+	var rid [32]byte
+	copy(rid[:], "0x0000000000000000000000000000000000000000000000000000000000000000")
+	bridgeContract.Deposit(
+		conn.Opts(),
+		uint8(1),
+		rid,
+		data,
+	)
 	return &Chain{
 		cfg:      chainCfg,
 		conn:     conn,
