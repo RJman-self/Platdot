@@ -8,7 +8,6 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/rjman-self/Platdot/bindings/GenericHandler"
 
 	"github.com/ChainSafe/chainbridge-utils/keystore"
 	bridge "github.com/rjman-self/Platdot/bindings/Bridge"
@@ -31,8 +30,6 @@ var (
 type DeployedContracts struct {
 	BridgeAddress         common.Address
 	ERC20HandlerAddress   common.Address
-	ERC721HandlerAddress  common.Address
-	GenericHandlerAddress common.Address
 }
 
 // DeployContracts deploys Bridge, Relayer, ERC20Handler, ERC721Handler and CentrifugeAssetHandler and returns the addresses
@@ -47,17 +44,7 @@ func DeployContracts(client *Client, chainID uint8, initialRelayerThreshold *big
 		return nil, err
 	}
 
-	erc721HandlerAddr, err := deployERC721Handler(client, bridgeAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	genericHandlerAddr, err := deployGenericHandler(client, bridgeAddr)
-	if err != nil {
-		return nil, err
-	}
-
-	deployedContracts := DeployedContracts{bridgeAddr, erc20HandlerAddr, erc721HandlerAddr, genericHandlerAddr}
+	deployedContracts := DeployedContracts{bridgeAddr, erc20HandlerAddr}
 
 	return &deployedContracts, nil
 
@@ -137,23 +124,3 @@ func deployERC721Handler(client *Client, bridgeAddress common.Address) (common.A
 	return erc721HandlerAddr, nil
 }
 
-func deployGenericHandler(client *Client, bridgeAddress common.Address) (common.Address, error) {
-	err := client.LockNonceAndUpdate()
-	if err != nil {
-		return ZeroAddress, err
-	}
-
-	addr, tx, _, err := GenericHandler.DeployGenericHandler(client.Opts, client.Client, bridgeAddress, [][32]byte{}, []common.Address{}, [][4]byte{}, [][4]byte{})
-	if err != nil {
-		return ZeroAddress, err
-	}
-
-	err = WaitForTx(client, tx)
-	if err != nil {
-		return ZeroAddress, err
-	}
-
-	client.UnlockNonce()
-
-	return addr, nil
-}

@@ -60,6 +60,7 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 	atp := string(m.Payload[1].([]byte))
 	eth, _ := ethcommon.PlatonToEth(atp)
 	platon, _ := ethcommon.EthToPlaton(eth)
+	m.Payload[1] = eth
 	fmt.Printf("writer msg =>\natp is %v\n0x is %v\neth is %s\nplaton is %v\nethToatp is %v\n", atp, eth, eth, platon)
 
 	switch m.Type {

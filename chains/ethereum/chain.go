@@ -22,11 +22,10 @@ package ethereum
 
 import (
 	"fmt"
-	"math/big"
-
 	"github.com/ChainSafe/chainbridge-utils/blockstore"
 	"github.com/ChainSafe/chainbridge-utils/core"
 	"github.com/ChainSafe/chainbridge-utils/crypto/secp256k1"
+	"math/big"
 	//"github.com/ChainSafe/chainbridge-utils/keystore"
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
 	"github.com/ChainSafe/chainbridge-utils/msg"
@@ -73,16 +72,15 @@ func setupBlockstore(cfg *Config, kp *secp256k1.Keypair) (*blockstore.Blockstore
 		return nil, err
 	}
 
-	if !cfg.freshStart {
-		latestBlock, err := bs.TryLoadLatestBlock()
-		if err != nil {
-			return nil, err
-		}
-
-		if latestBlock.Cmp(cfg.startBlock) == 1 {
-			cfg.startBlock = latestBlock
-		}
-	}
+	//if !cfg.freshStart {
+	//	latestBlock, err := bs.TryLoadLatestBlock()
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	if latestBlock.Cmp(cfg.startBlock) == 1 {
+	//		cfg.startBlock = latestBlock
+	//	}
+	//}
 
 	return bs, nil
 }
@@ -145,18 +143,20 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 
 	//Create Deposit
 
-	//data := utils.ConstructErc20DepositData(cfg.erc20HandlerContract.Bytes(), big.NewInt(900000000000000000))
-	////dataHash := hexutils.BytesToHex(data)
-	////fmt.Printf("%v\n", dataHash)
-	//conn.Opts().Nonce = conn.Opts().Nonce.Add(conn.Opts().Nonce, big.NewInt(1))
-	//var rid [32]byte
-	//copy(rid[:], "0x0000000000000000000000000000000000000000000000000000000000000000")
-	//_, _ = bridgeContract.Deposit(
-	//	conn.Opts(),
-	//	uint8(1),
-	//	rid,
-	//	data,
-	//)
+	//go func() {
+	//	data := utils.ConstructErc20DepositData(cfg.erc20HandlerContract.Bytes(), big.NewInt(900000000000000000))
+		//dataHash := hexutils.BytesToHex(data)
+	//	//fmt.Printf("%v\n", dataHash)
+	//	conn.Opts().Nonce = conn.Opts().Nonce.Add(conn.Opts().Nonce, big.NewInt(1))
+	//	var rid [32]byte
+	//	copy(rid[:], "0x0000000000000000000000000000000000000000000000000000000000000000")
+	//	_, _ = bridgeContract.Deposit(
+	//		conn.Opts(),
+	//		uint8(1),
+	//		rid,
+	//		data,
+	//	)
+	//}()
 
 	return &Chain{
 		cfg:      chainCfg,

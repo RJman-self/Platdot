@@ -4,7 +4,7 @@ go 1.15
 
 replace github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0 => github.com/RJman-self/go-substrate-rpc-client/v2 v2.1.1-0.20210228105504-31eab1ed089b
 
-replace github.com/ethereum/go-ethereum v1.9.25 => /home/rjman/Projects/BlockChain/lib/go-ethereum
+replace github.com/ethereum/go-ethereum v1.9.25 => /home/rjman/Projects/BlockChain/lib/go-ethereum/
 
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
@@ -17,7 +17,6 @@ require (
 	github.com/ChainSafe/log15 v1.0.0
 	github.com/JFJun/go-substrate-crypto v1.0.1
 	github.com/btcsuite/btcd v0.21.0-beta // indirect
-	github.com/btcsuite/btcutil v1.0.2
 	github.com/centrifuge/go-substrate-rpc-client v2.0.0+incompatible
 	github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0
 	github.com/ethereum/go-ethereum v1.9.25
@@ -26,7 +25,6 @@ require (
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/rjman-self/go-polkadot-rpc-client v0.0.0-20210304082244-12e2ea73e294
 	github.com/rjmand/go-substrate-rpc-client/v2 v2.1.1-0.20210228120507-d15559aaddb1
-	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 // indirect

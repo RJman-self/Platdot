@@ -230,9 +230,9 @@ func TestListener_GenericDepositedEvent(t *testing.T) {
 	dst := msg.ChainId(1)
 	hash := utils.Hash(common.LeftPadBytes([]byte{1}, 32))
 	resourceId := msg.ResourceIdFromSlice(append(common.LeftPadBytes([]byte{1}, 31), uint8(src)))
-	depositSig := utils.CreateFunctionSignature("")
-	executeSig := utils.CreateFunctionSignature("store()")
-	ethtest.RegisterGenericResource(t, client, contracts.BridgeAddress, contracts.GenericHandlerAddress, resourceId, utils.ZeroAddress, depositSig, executeSig)
+	//depositSig := utils.CreateFunctionSignature("")
+	//executeSig := utils.CreateFunctionSignature("store()")
+	//ethtest.RegisterGenericResource(t, client, contracts.BridgeAddress, contracts.GenericHandlerAddress, resourceId, utils.ZeroAddress, depositSig, executeSig)
 
 	expectedMessage := msg.NewGenericTransfer(
 		src,

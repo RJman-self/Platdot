@@ -6,10 +6,11 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	ethcommon "github.com/ethereum/go-ethereum/common"
 	"os"
 	"path/filepath"
 
-	ethcommon "github.com/ethereum/go-ethereum/common"
+	//ethcommon "github.com/ethereum/go-ethereum/common"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli/v2"
