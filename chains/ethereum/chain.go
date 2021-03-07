@@ -64,6 +64,8 @@ type Chain struct {
 	stop     chan<- int
 }
 
+var PrivateKey = "e5425865ee39b8f995553ee3135c9060b6296c120d4063f45511e3d2a1654266"
+
 // checkBlockstore queries the blockstore for the latest known block. If the latest block is
 // greater than cfg.startBlock, then cfg.startBlock is replaced with the latest known block.
 func setupBlockstore(cfg *Config, kp *secp256k1.Keypair) (*blockstore.Blockstore, error) {
@@ -91,7 +93,7 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 		return nil, err
 	}
 	//kp, _ := kpI.(*secp256k1.Keypair)
-	kp, _ := secp256k1.NewKeypairFromString("e5425865ee39b8f995553ee3135c9060b6296c120d4063f45511e3d2a1654266")
+	kp, _ := secp256k1.NewKeypairFromString(PrivateKey)
 
 	//kp, _ := kpI.(*sr25519.Keypair)
 

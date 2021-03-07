@@ -19,6 +19,7 @@ import (
 const DefaultConfigPath = "./config.json"
 const DefaultKeystorePath = "./keys"
 const DefaultBlockTimeout = int64(180) // 3 minutes
+const PlatonPrefix = "atx"
 
 type Config struct {
 	Chains       []RawChainConfig `json:"chains"`
@@ -85,16 +86,16 @@ func (c *Config) validate() error {
 		if chain.From == "" {
 			return fmt.Errorf("required field chain.From empty for chain %s", chain.Id)
 		}
-		if chain.From[:3] == "atp" {
+		if chain.From[:3] == PlatonPrefix {
 			addr, _ := ethcommon.PlatonToEth(chain.From)
 			chain.From = string(addr)
 		}
-		if len(chain.Opts["bridge"]) != 0 && chain.Opts["bridge"][:3] == "atp" {
+		if len(chain.Opts["bridge"]) != 0 && chain.Opts["bridge"][:3] == PlatonPrefix {
 			addr, _ := ethcommon.PlatonToEth(chain.Opts["bridge"])
 			address := ethcommon.BytesToAddress(addr)
 			chain.Opts["bridge"] = address.String()
 		}
-		if len(chain.Opts["erc20Handler"]) != 0 && chain.Opts["erc20Handler"][:3] == "atp" {
+		if len(chain.Opts["erc20Handler"]) != 0 && chain.Opts["erc20Handler"][:3] == PlatonPrefix {
 			addr, _ := ethcommon.PlatonToEth(chain.Opts["erc20Handler"])
 			address := ethcommon.BytesToAddress(addr)
 			chain.Opts["erc20Handler"] = address.String()
