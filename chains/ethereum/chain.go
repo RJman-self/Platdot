@@ -26,7 +26,6 @@ import (
 	"github.com/ChainSafe/chainbridge-utils/core"
 	"github.com/ChainSafe/chainbridge-utils/crypto/secp256k1"
 	"github.com/rjman-self/Platdot/config"
-	utils "github.com/rjman-self/Platdot/shared/ethereum"
 	"math/big"
 	//"github.com/ChainSafe/chainbridge-utils/keystore"
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
@@ -149,20 +148,8 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 	//Create Deposit
 
 	go func() {
-		data := utils.ConstructErc20DepositData([]byte(PolkadotRecipient), big.NewInt(9000000000000000000))
-		dataHash := common.BytesToHash(data)
-		fmt.Printf("%v\n", dataHash)
-		//dataHahs := hexutils.BytesToHex(data)
-		//fmt.Printf("data is %v\n", dataHa?)
-		conn.Opts().Nonce = conn.Opts().Nonce.Add(conn.Opts().Nonce, big.NewInt(1))
-		var rid [32]byte
-		copy(rid[:], "0x0000000000000000000000000000000000000000000000000000000000000000")
-		_, _ = bridgeContract.Deposit(
-			conn.Opts(),
-			uint8(1),
-			rid,
-			data,
-		)
+
+
 	}()
 
 	return &Chain{

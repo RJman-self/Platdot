@@ -178,10 +178,17 @@ func (l *listener) getDepositEventsForBlock(latestBlock *big.Int) error {
 	// read through the log events and handle their deposit event if handler is recognized
 	for _, log := range logs {
 		var m msg.Message
-		destId := msg.ChainId(log.Topics[1].Big().Uint64())
-		rId := msg.ResourceIdFromSlice(log.Topics[2].Bytes())
-		nonce := msg.Nonce(log.Topics[3].Big().Uint64())
+		fmt.Printf("loop logs get %s\n", log.Topics[0])
+		dest := log.Data[:32]
+		destBig := new(big.Int).SetBytes(dest)
+		destId := msg.ChainId(destBig.Uint64())
+		rId := msg.ResourceIdFromSlice(log.Data[33:64])
+		nc := log.Data[65:96]
+		ncBig := new(big.Int).SetBytes(nc)
+		nonce := msg.Nonce(ncBig.Uint64())
 
+		fmt.Printf("parse that destId is %s\nrId is %s\nnonce is %s\n", dest, rId, nc)
+		fmt.Printf("parse that destId is %v\nrId is %v\nnonce is %v\n", destId, rId, nonce)
 		addr, err := l.bridgeContract.ResourceIDToHandlerAddress(&bind.CallOpts{From: l.conn.Keypair().CommonAddress()}, rId)
 		if err != nil {
 			return fmt.Errorf("failed to get handler from resource ID %x", rId)

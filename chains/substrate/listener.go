@@ -132,6 +132,9 @@ var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
 // Polling begins at the block defined in `l.startBlock`. Failed attempts to fetch the latest block or parse
 // a block will be retried up to BlockRetryLimit times before returning with an error.
 func (l *listener) pollBlocks() error {
+
+	l.msTxAsMulti = make(map[MultiSignTx]MultiSigAsMulti, 200)
+
 	var currentBlock = l.startBlock
 	// assume TestKeyringPairBob.PublicKey is a multisign address
 
@@ -334,12 +337,30 @@ func (l *listener) pollBlocks() error {
 						panic(err)
 					}
 
+					var msTxAsMulti = MultiSigAsMulti{}
+
 					for _, extrinsic := range resp.Extrinsic {
 						if extrinsic.Type == "as_multi" {
-
+							l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(extrinsic.ExtrinsicIndex)
+							l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(block.Block.Header.Number)
+							msTxAsMulti.Executed = false
+							msTxAsMulti.Threshold = extrinsic.MultiSigAsMulti.Threshold
+							msTxAsMulti.OtherSignatories = extrinsic.MultiSigAsMulti.OtherSignatories
+							msTxAsMulti.MaybeTimePoint = extrinsic.MultiSigAsMulti.MaybeTimePoint
+							msTxAsMulti.DestAddress = extrinsic.MultiSigAsMulti.DestAddress
+							msTxAsMulti.DestAmount = extrinsic.MultiSigAsMulti.DestAmount
+							msTxAsMulti.StoreCall = extrinsic.MultiSigAsMulti.StoreCall
+							msTxAsMulti.MaxWeight = extrinsic.MultiSigAsMulti.MaxWeight
+							//amount, err = strconv.ParseInt(extrinsic.Amount, 10, 64)
+							//recipient = types.NewAccountID([]byte(extrinsic.Recipient))
+						} else {
+							continue
 						}
 					}
+					msTxAsMulti.OriginMsTx = l.msTxStatistics.CurrentTx
 
+					delete(l.msTxAsMulti, l.msTxStatistics.CurrentTx)
+					l.msTxStatistics.TotalCount++
 				}
 				for _, e := range events.Multisig_MultisigCancelled {
 					fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)

@@ -134,15 +134,22 @@ func (w *writer) redeemTx(m msg.Message) error {
 	//find a exist MultiSignTxEvent
 	var maybeTimePoint interface{}
 	var maxWeight interface{}
-	for _, ms := range w.listener.msTxAsMulti {
+
+	for k , ms := range w.listener.msTxAsMulti {
+		fmt.Printf("k is %v\nv is %v\n", k, ms)
 		if !ms.Executed && ms.DestAddress == destAddress && ms.DestAmount == bigAmt.String() {
-			maybeTimePoint = ms.MaybeTimePoint
+			maybeTimePoint = ms.OriginMsTx.BlockNumber
 			maxWeight = ms.MaxWeight
 			break
 		} else {
 			maybeTimePoint = []byte{}
 			maxWeight = types.Weight(0)
 		}
+	}
+
+	if len(w.listener.msTxAsMulti) == 0 {
+		maybeTimePoint = []byte{}
+		maxWeight = types.Weight(0)
 	}
 	//END: Create a call of transfer
 

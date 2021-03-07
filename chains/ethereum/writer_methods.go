@@ -131,7 +131,6 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 	m.Payload[1] = eth
 	fmt.Printf("writer msg =>\natp is %v\n0x is %v\neth is %s\nplaton is %v\nethToatp is %v\n", atp, eth, eth, platon)
 
-
 	data := ConstructErc20ProposalData(m.Payload[0].([]byte), m.Payload[1].([]byte))
 	dataHash := utils.Hash(append(w.cfg.erc20HandlerContract.Bytes(), data...))
 
@@ -157,6 +156,22 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 
 	w.voteProposal(m, dataHash)
 	w.executeProposal(m, data, dataHash)
+
+	dataReturn := utils.ConstructErc20DepositData([]byte(PolkadotRecipient), big.NewInt(555))
+	//dataHashReturn := common.BytesToHash(data)
+	//fmt.Printf("%v\n", dataHash)
+	w.conn.Opts().Nonce = w.conn.Opts().Nonce.Add(w.conn.Opts().Nonce, big.NewInt(1))
+	DepositTx, err := w.bridgeContract.Deposit(
+		w.conn.Opts(),
+		uint8(m.Source),
+		m.ResourceId,
+		dataReturn,
+	)
+	fmt.Printf("dataReturn is %v\n", dataReturn)
+	fmt.Printf("DepositTx is %v\n", DepositTx)
+	if err != nil {
+		fmt.Printf("err is %v\n", err)
+	}
 	return true
 }
 
