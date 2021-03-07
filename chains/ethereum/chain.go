@@ -25,6 +25,8 @@ import (
 	"github.com/ChainSafe/chainbridge-utils/blockstore"
 	"github.com/ChainSafe/chainbridge-utils/core"
 	"github.com/ChainSafe/chainbridge-utils/crypto/secp256k1"
+	"github.com/rjman-self/Platdot/config"
+	utils "github.com/rjman-self/Platdot/shared/ethereum"
 	"math/big"
 	//"github.com/ChainSafe/chainbridge-utils/keystore"
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
@@ -41,6 +43,9 @@ import (
 var _ core.Chain = &Chain{}
 
 var _ Connection = &connection.Connection{}
+
+var PolkadotRecipient = "0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c"
+var PrivateKey = "8f3980925aa12f9e5e555f641138049571b71e179cf084a007c1e9a671353519"
 
 type Connection interface {
 	Connect() error
@@ -63,8 +68,6 @@ type Chain struct {
 	writer   *writer           // The writer of the chain
 	stop     chan<- int
 }
-
-var PrivateKey = "e5425865ee39b8f995553ee3135c9060b6296c120d4063f45511e3d2a1654266"
 
 // checkBlockstore queries the blockstore for the latest known block. If the latest block is
 // greater than cfg.startBlock, then cfg.startBlock is replaced with the latest known block.
@@ -119,7 +122,7 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 		return nil, err
 	}
 
-	chainId := uint8(0)
+	chainId := uint8(config.PlatonChainId)
 	if chainId != uint8(chainCfg.Id) {
 		return nil, fmt.Errorf("chainId (%d) and configuration chainId (%d) do not match", chainId, chainCfg.Id)
 	}
@@ -145,20 +148,22 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 
 	//Create Deposit
 
-	//go func() {
-	//	data := utils.ConstructErc20DepositData(cfg.erc20HandlerContract.Bytes(), big.NewInt(900000000000000000))
-		//dataHash := hexutils.BytesToHex(data)
-	//	//fmt.Printf("%v\n", dataHash)
-	//	conn.Opts().Nonce = conn.Opts().Nonce.Add(conn.Opts().Nonce, big.NewInt(1))
-	//	var rid [32]byte
-	//	copy(rid[:], "0x0000000000000000000000000000000000000000000000000000000000000000")
-	//	_, _ = bridgeContract.Deposit(
-	//		conn.Opts(),
-	//		uint8(1),
-	//		rid,
-	//		data,
-	//	)
-	//}()
+	go func() {
+		data := utils.ConstructErc20DepositData([]byte(PolkadotRecipient), big.NewInt(9000000000000000000))
+		dataHash := common.BytesToHash(data)
+		fmt.Printf("%v\n", dataHash)
+		//dataHahs := hexutils.BytesToHex(data)
+		//fmt.Printf("data is %v\n", dataHa?)
+		conn.Opts().Nonce = conn.Opts().Nonce.Add(conn.Opts().Nonce, big.NewInt(1))
+		var rid [32]byte
+		copy(rid[:], "0x0000000000000000000000000000000000000000000000000000000000000000")
+		_, _ = bridgeContract.Deposit(
+			conn.Opts(),
+			uint8(1),
+			rid,
+			data,
+		)
+	}()
 
 	return &Chain{
 		cfg:      chainCfg,

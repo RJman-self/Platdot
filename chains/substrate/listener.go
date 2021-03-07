@@ -55,7 +55,7 @@ var BlockRetryInterval = time.Second * 5
 var BlockRetryLimit = 5
 var AKSM = "0x0000000000000000000000000000000000000000000000000000000000000000"
 var chainSub = 1
-var chainAlaya = 0
+var chainAlaya = 222
 var MultiSignAddress = "0xbc1d0c69609ecf7cf6513415502b96247cf1747bfde31427462b2406d2f13746"
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,

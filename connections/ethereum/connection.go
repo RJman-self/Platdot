@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/rjman-self/Platdot/config"
 	"math/big"
 	"sync"
 	"time"
@@ -91,7 +92,7 @@ func (c *Connection) newTransactOpts(value, gasLimit, gasPrice *big.Int) (*bind.
 		return nil, 0, err
 	}
 
-	id := big.NewInt(201018)
+	id := big.NewInt(config.PlatonChainId)
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, id)
 	if err != nil {
 		return nil, 0, err
@@ -174,8 +175,7 @@ func (c *Connection) LockAndUpdateOpts() error {
 }
 
 func (c *Connection) UnlockOpts() {
-	c.optsLock.Unlock()
-}
+	c.optsLock.Unlock()}
 
 // LatestBlock returns the latest block from the current chain
 func (c *Connection) LatestBlock() (*big.Int, error) {

@@ -20,6 +20,7 @@ const DefaultConfigPath = "./config.json"
 const DefaultKeystorePath = "./keys"
 const DefaultBlockTimeout = int64(180) // 3 minutes
 const PlatonPrefix = "atx"
+const PlatonChainId = 222
 
 type Config struct {
 	Chains       []RawChainConfig `json:"chains"`

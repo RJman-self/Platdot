@@ -6,7 +6,9 @@ package ethereum
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"time"
 
@@ -31,12 +33,12 @@ var ErrFatalQuery = errors.New("query of chain state failed")
 
 // proposalIsComplete returns true if the proposal state is either Passed, Transferred or Cancelled
 func (w *writer) proposalIsComplete(srcId msg.ChainId, nonce msg.Nonce, dataHash [32]byte) bool {
-
-	data := "0x2a84ae1e7b0d146449d5ffa4d97fae2340282ad53310ea50687221144bb3276a"
+	data := "0x0000000000000000000000000000000000000000000000000000000000000000"
 	datahash, _ := types.HexDecodeString(data)
 	var reallyData [32]byte
 	copy(reallyData[:], datahash)
-	prop, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), 1, 11145331, reallyData)
+	existProp, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), 1, 0, reallyData)
+	fmt.Printf("existProp is %v\n", existProp)
 
 	//resourceID := "0x0000000000000000000000000000000000000000000000000000000000000000"
 	//platonHandler := "atp1rd7pjyygepf3r8a8zk8y25n3d3hy249whnuayy"
@@ -45,8 +47,24 @@ func (w *writer) proposalIsComplete(srcId msg.ChainId, nonce msg.Nonce, dataHash
 
 	//w.bridgeContract.AdminSetResource(w.conn.CallOpts(), handler, )
 
+	//rawTx, err := w.bridgeContract.AdminChangeRelayerThreshold(w.conn.CallOpts(), 2)
 
-	//prop, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), uint8(srcId), uint64(nonce), dataHash)
+	rjman := "atx1sy2tvmghdv47hwz89yu9wz2y29nd0frr0578e3"
+	rjmanEth, _ := common.PlatonToEth(rjman)
+	isRelayer, err := w.bridgeContract.IsRelayer(w.conn.CallOpts(), common.BytesToAddress(rjmanEth))
+	if err != nil {
+		fmt.Printf("err is %v\n", err)
+	}
+	fmt.Printf(rjman, " is %v is \n", isRelayer)
+
+
+	totalRelayers, err := w.bridgeContract.TotalRelayers(w.conn.CallOpts())
+	if err != nil {
+		fmt.Printf("err is %v\n", err)
+	}
+	fmt.Printf("totalRelayers is %v\n", totalRelayers)
+
+	prop, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), uint8(srcId), uint64(nonce), dataHash)
 	//prop, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), 1, 967551, data)
 
 	if err != nil {
@@ -107,18 +125,25 @@ func (w *writer) shouldVote(m msg.Message, dataHash [32]byte) bool {
 func (w *writer) createErc20Proposal(m msg.Message) bool {
 	w.log.Info("Creating erc20 proposal", "src", m.Source, "nonce", m.DepositNonce)
 
+	atp := string(m.Payload[1].([]byte))
+	eth, _ := common.PlatonToEth(atp)
+	platon, _ := common.EthToPlaton(eth)
+	m.Payload[1] = eth
+	fmt.Printf("writer msg =>\natp is %v\n0x is %v\neth is %s\nplaton is %v\nethToatp is %v\n", atp, eth, eth, platon)
+
+
 	data := ConstructErc20ProposalData(m.Payload[0].([]byte), m.Payload[1].([]byte))
 	dataHash := utils.Hash(append(w.cfg.erc20HandlerContract.Bytes(), data...))
 
-	//if !w.shouldVote(m, dataHash) {
-	//	if w.proposalIsPassed(m.Source, m.DepositNonce, dataHash) {
-	//		// We should not vote for this proposal but it is ready to be executed
-	//		w.executeProposal(m, data, dataHash)
-	//		return true
-	//	} else {
-	//		return false
-	//	}
-	//}
+	if !w.shouldVote(m, dataHash) {
+		if w.proposalIsPassed(m.Source, m.DepositNonce, dataHash) {
+			// We should not vote for this proposal but it is ready to be executed
+			w.executeProposal(m, data, dataHash)
+			return true
+		} else {
+			return false
+		}
+	}
 
 	// Capture latest block so when know where to watch from
 	latestBlock, err := w.conn.LatestBlock()
