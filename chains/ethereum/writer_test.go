@@ -164,13 +164,11 @@ func TestCreateAndExecuteErc721Proposal(t *testing.T) {
 	tokenId := big.NewInt(1)
 	erc721Contract := ethtest.Erc721Deploy(t, client)
 	ethtest.Erc721Mint(t, client, erc721Contract, tokenId, []byte{})
-	ethtest.Erc721FundHandler(t, client, contracts.ERC721HandlerAddress, erc721Contract, tokenId)
 
 	// Create initial transfer message
 	resourceId := msg.ResourceIdFromSlice(append(common.LeftPadBytes(erc721Contract.Bytes(), 31), 0))
 	recipient := ethcrypto.PubkeyToAddress(BobKp.PrivateKey().PublicKey)
 	m := msg.NewNonFungibleTransfer(1, 0, 0, resourceId, tokenId, recipient.Bytes(), []byte{})
-	ethtest.RegisterResource(t, client, contracts.BridgeAddress, contracts.ERC721HandlerAddress, resourceId, erc721Contract)
 	// Helpful for debugging
 	go ethtest.WatchEvent(client, contracts.BridgeAddress, utils.ProposalEvent)
 	go ethtest.WatchEvent(client, contracts.BridgeAddress, utils.ProposalVote)
@@ -196,10 +194,7 @@ func TestCreateAndExecuteGenericProposal(t *testing.T) {
 	}
 
 	rId := msg.ResourceIdFromSlice(common.LeftPadBytes(assetStoreAddr.Bytes(), 32))
-	depositSig := utils.CreateFunctionSignature("")
-	executeSig := utils.CreateFunctionSignature("store(bytes32)")
 
-	ethtest.RegisterGenericResource(t, client, contracts.BridgeAddress, contracts.GenericHandlerAddress, rId, assetStoreAddr, depositSig, executeSig)
 	// Create initial transfer message
 	hash := common.HexToHash("0xf0a8748d2b102eb4e0e116047753b9beff0396d81b830693b19a1376ac4b14e8")
 	m := msg.Message{
