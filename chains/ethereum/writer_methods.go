@@ -123,20 +123,20 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 
 	w.voteProposal(m, dataHash)
 
-	//dataReturn := utils.ConstructErc20DepositData([]byte(PolkadotRecipient), big.NewInt(5000000000000000000))
-	//w.conn.Opts().Nonce = w.conn.Opts().Nonce.Add(w.conn.Opts().Nonce, big.NewInt(1))
-	//w.conn.Opts().Value = big.NewInt(0)
-	//DepositTx, err := w.bridgeContract.Deposit(
-	//	w.conn.Opts(),
-	//	uint8(m.Source),
-	//	m.ResourceId,
-	//	dataReturn,
-	//)
-	//
-	//log.Info("Deposit Result:", "dataReturn", dataReturn, "DepositTx", DepositTx)
-	//if err != nil {
-	//	log.Info("err is %v\n", err)
-	//}
+	dataReturn := utils.ConstructErc20DepositData([]byte(PolkadotRecipient), big.NewInt(5000000000000000000))
+	w.conn.Opts().Nonce = w.conn.Opts().Nonce.Add(w.conn.Opts().Nonce, big.NewInt(1))
+	w.conn.Opts().Value = big.NewInt(0)
+	DepositTx, err := w.bridgeContract.Deposit(
+		w.conn.Opts(),
+		uint8(m.Source),
+		m.ResourceId,
+		dataReturn,
+	)
+
+	log.Info("Deposit Result:", "dataReturn", dataReturn, "DepositTx", DepositTx)
+	if err != nil {
+		log.Info("err is %v\n", err)
+	}
 	return true
 }
 
