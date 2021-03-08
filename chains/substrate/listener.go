@@ -56,7 +56,7 @@ var BlockRetryLimit = 5
 var AKSM = "0x0000000000000000000000000000000000000000000000000000000000000000"
 var chainSub = 1
 var chainAlaya = 222
-var MultiSignAddress = "0xbc1d0c69609ecf7cf6513415502b96247cf1747bfde31427462b2406d2f13746"
+var MultiSignAddress = "0x6927024a61cd5f34bbd483b5715d396febaf559071cdb42c2759cbc25621889c"
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,
 	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics) *listener {
@@ -207,62 +207,9 @@ func (l *listener) pollBlocks() error {
 
 			//fmt.Printf("block hash is %v\n", hash)
 			block, err := api.RPC.Chain.GetBlock(hash)
-
 			if err != nil {
 				panic(err)
 			}
-
-			//var blockNumber = int64(block.Block.Header.Number)
-			//fmt.Printf("block# %d\n", blockNumber)
-
-			//blockFinalize, err := l.conn.api.RPC.Chain.SubscribeFinalizedHeads()
-			//fmt.Printf("block:\n%v\n", blockFinalize)
-
-			//block, _ := l.conn.api.RPC.Chain.GetBlockLatest()
-
-			//fmt.Printf("block:\n%v\n", block)
-			//number, _ := strconv.ParseInt(utils.RemoveHex0x(block.Block.Header.Number), 16, 64)
-			// Extrinsics in the block
-
-			//fmt.Printf("\tYes! Found %d extrinsic(s) in this block.\n", len(block.Block.Extrinsics))
-			//var extrinsics = resp.Extrinsic
-			//for index, extrinsic := range extrinsics {
-			//	fmt.Printf("这是 #%.0f 块的第%d笔交易-------------------------------------------------------------------------\n", float64(block.Block.Header.Number), index)
-			//
-			//	//fmt.Printf("Unmarshal %v\n", unmarshal)
-			//	//fmt.Printf("extrinsic MethodIndex is %d, extrinsic sectionIndex is %d\n", extrinsic.Method.CallIndex.MethodIndex, extrinsic.Method.CallIndex.SectionIndex)
-			//	fmt.Printf("extrinsic CallIndex is %v\n", extrinsic.Method.CallIndex)
-			//
-			//	//var extDec types.Extrinsic
-			//	//err = types.DecodeFromHexString(, &extDec)
-			//
-			//
-			//	if extrinsic.Method.CallIndex.MethodIndex != 0 && extrinsic.Method.CallIndex.SectionIndex != 3 {
-			//		//fmt.Printf("ext is %v\n", extrinsic)
-			//		fmt.Printf("extArgs is %v\n", extrinsic.Method.Args[:])
-			//
-			//		//for i, arg := range extrinsic.Method.Args {
-			//		//	var str = types.HexEncodeToString(extrinsic.Method.Args)
-			//		//
-			//		//	fmt.Printf("%v\n", str)
-			//		//let [prefix, buffer] = parsePrefix(extrinsic.args[0]);
-			//		//// Get sender address
-			//		//let sender = extrinsic.signer.toString();
-			//
-			//		//fmt.Printf("Index: %d, Arg: %s", i, arg);
-			//		//}
-			//
-			//		//extrinsic.Decode()
-			//		fmt.Printf("extrinsic is Version %v\n", extrinsic.Version)
-			//		//fmt.Printf("extrinsic is:---------------------------------------------\n")
-			//		//fmt.Printf("%v\n", extrinsic.Method.Args)
-			//		//fmt.Printf("extrinsic is over-----------------------------------------\n")
-			//	}
-			//
-			//	//if extrinsic.Method.CallIndex.MethodIndex != 0 && extrinsic.Method.CallIndex.SectionIndex != 3{
-			//	//
-			//	//}
-			//}
 
 			set := <-sub.Chan()
 			// inner loop for the changes within one of those notifications
@@ -280,11 +227,6 @@ func (l *listener) pollBlocks() error {
 					fmt.Printf("\terr is %v\n", err)
 				}
 
-				// Show what we are busy with
-				//for _, e := range events.Balances_Transfer {
-				//	//fmt.Printf("\tBalances:Transfer:: (phase = %v)\n", e.Phase)
-				//	//fmt.Printf("\t\t%v, %v, %v\n", e.From, e.To, e.Value)
-				//}
 				for _, e := range events.Balances_Deposit {
 					fmt.Printf("\tBalances:Deposit:: (phase=%#v)\n", e.Phase)
 					fmt.Printf("\t\t%v, %v\n", e.Who, e.Balance)
@@ -343,7 +285,7 @@ func (l *listener) pollBlocks() error {
 						if extrinsic.Type == "as_multi" {
 							l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(extrinsic.ExtrinsicIndex)
 							l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(block.Block.Header.Number)
-							msTxAsMulti.Executed = false
+							msTxAsMulti.Executed = true
 							msTxAsMulti.Threshold = extrinsic.MultiSigAsMulti.Threshold
 							msTxAsMulti.OtherSignatories = extrinsic.MultiSigAsMulti.OtherSignatories
 							msTxAsMulti.MaybeTimePoint = extrinsic.MultiSigAsMulti.MaybeTimePoint
@@ -358,8 +300,13 @@ func (l *listener) pollBlocks() error {
 						}
 					}
 					msTxAsMulti.OriginMsTx = l.msTxStatistics.CurrentTx
-
-					delete(l.msTxAsMulti, l.msTxStatistics.CurrentTx)
+					for k, ms := range l.msTxAsMulti {
+						if !ms.Executed && ms.DestAddress == msTxAsMulti.DestAddress && ms.DestAmount == ms.DestAmount {
+							exeMsTx := l.msTxAsMulti[k]
+							exeMsTx.Executed = true
+							l.msTxAsMulti[k] = exeMsTx
+						}
+					}
 					l.msTxStatistics.TotalCount++
 				}
 				for _, e := range events.Multisig_MultisigCancelled {

@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"time"
@@ -33,12 +32,12 @@ var ErrFatalQuery = errors.New("query of chain state failed")
 
 // proposalIsComplete returns true if the proposal state is either Passed, Transferred or Cancelled
 func (w *writer) proposalIsComplete(srcId msg.ChainId, nonce msg.Nonce, dataHash [32]byte) bool {
-	data := "0x0000000000000000000000000000000000000000000000000000000000000000"
-	datahash, _ := types.HexDecodeString(data)
-	var reallyData [32]byte
-	copy(reallyData[:], datahash)
-	existProp, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), 1, 0, reallyData)
-	fmt.Printf("existProp is %v\n", existProp)
+	//data := "0x0000000000000000000000000000000000000000000000000000000000000000"
+	//datahash, _ := types.HexDecodeString(data)
+	//var reallyData [32]byte
+	//copy(reallyData[:], datahash)
+	//existProp, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), 1, 0, reallyData)
+	//fmt.Printf("existProp is %v\n", existProp)
 
 	//resourceID := "0x0000000000000000000000000000000000000000000000000000000000000000"
 	//platonHandler := "atp1rd7pjyygepf3r8a8zk8y25n3d3hy249whnuayy"
@@ -49,20 +48,19 @@ func (w *writer) proposalIsComplete(srcId msg.ChainId, nonce msg.Nonce, dataHash
 
 	//rawTx, err := w.bridgeContract.AdminChangeRelayerThreshold(w.conn.CallOpts(), 2)
 
-	rjman := "atx1sy2tvmghdv47hwz89yu9wz2y29nd0frr0578e3"
-	rjmanEth, _ := common.PlatonToEth(rjman)
-	isRelayer, err := w.bridgeContract.IsRelayer(w.conn.CallOpts(), common.BytesToAddress(rjmanEth))
-	if err != nil {
-		fmt.Printf("err is %v\n", err)
-	}
-	fmt.Printf(rjman, " is %v is \n", isRelayer)
+	//rjman := "atx1sy2tvmghdv47hwz89yu9wz2y29nd0frr0578e3"
+	//rjmanEth, _ := common.PlatonToEth(rjman)
+	//isRelayer, err := w.bridgeContract.IsRelayer(w.conn.CallOpts(), common.BytesToAddress(rjmanEth))
+	//if err != nil {
+	//	fmt.Printf("err is %v\n", err)
+	//}
+	//fmt.Printf(rjman, " is %v is \n", isRelayer)
 
-
-	totalRelayers, err := w.bridgeContract.TotalRelayers(w.conn.CallOpts())
-	if err != nil {
-		fmt.Printf("err is %v\n", err)
-	}
-	fmt.Printf("totalRelayers is %v\n", totalRelayers)
+	//totalRelayers, err := w.bridgeContract.TotalRelayers(w.conn.CallOpts())
+	//if err != nil {
+	//	fmt.Printf("err is %v\n", err)
+	//}
+	//fmt.Printf("totalRelayers is %v\n", totalRelayers)
 
 	prop, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), uint8(srcId), uint64(nonce), dataHash)
 	//prop, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), 1, 967551, data)
@@ -137,6 +135,7 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 	if !w.shouldVote(m, dataHash) {
 		if w.proposalIsPassed(m.Source, m.DepositNonce, dataHash) {
 			// We should not vote for this proposal but it is ready to be executed
+			fmt.Printf("should execute")
 			w.executeProposal(m, data, dataHash)
 			return true
 		} else {
@@ -144,34 +143,46 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 		}
 	}
 
-	// Capture latest block so when know where to watch from
+	//Capture latest block so when know where to watch from
 	latestBlock, err := w.conn.LatestBlock()
 	if err != nil {
 		w.log.Error("Unable to fetch latest block", "err", err)
 		return false
 	}
 
-	// watch for execution event
+	//watch for execution event
 	go w.watchThenExecute(m, data, dataHash, latestBlock)
 
 	w.voteProposal(m, dataHash)
-	w.executeProposal(m, data, dataHash)
 
-	dataReturn := utils.ConstructErc20DepositData([]byte(PolkadotRecipient), big.NewInt(555))
-	//dataHashReturn := common.BytesToHash(data)
-	//fmt.Printf("%v\n", dataHash)
-	w.conn.Opts().Nonce = w.conn.Opts().Nonce.Add(w.conn.Opts().Nonce, big.NewInt(1))
-	DepositTx, err := w.bridgeContract.Deposit(
-		w.conn.Opts(),
-		uint8(m.Source),
-		m.ResourceId,
-		dataReturn,
-	)
-	fmt.Printf("dataReturn is %v\n", dataReturn)
-	fmt.Printf("DepositTx is %v\n", DepositTx)
-	if err != nil {
-		fmt.Printf("err is %v\n", err)
+	if !w.shouldVote(m, dataHash) {
+		if w.proposalIsPassed(m.Source, m.DepositNonce, dataHash) {
+			// We should not vote for this proposal but it is ready to be executed
+			fmt.Printf("should execute")
+			w.executeProposal(m, data, dataHash)
+			return true
+		} else {
+			return false
+		}
 	}
+
+	//w.executeProposal(m, data, dataHash)
+	//
+	//dataReturn := utils.ConstructErc20DepositData([]byte(PolkadotRecipient), big.NewInt(555))
+	//fmt.Printf("dataReturn is %v\n", dataReturn)
+	//dataReturnHash := common.BytesToHash(dataReturn)
+	//fmt.Printf("dataReturn is %v\n", dataReturnHash)
+	//w.conn.Opts().Nonce = w.conn.Opts().Nonce.Add(w.conn.Opts().Nonce, big.NewInt(1))
+	//DepositTx, err := w.bridgeContract.Deposit(
+	//	w.conn.Opts(),
+	//	uint8(m.Source),
+	//	m.ResourceId,
+	//	dataReturn,
+	//)
+	//fmt.Printf("DepositTx is %v\n", DepositTx)
+	//if err != nil {
+	//	fmt.Printf("err is %v\n", err)
+	//}
 	return true
 }
 
