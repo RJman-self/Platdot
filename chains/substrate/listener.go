@@ -363,7 +363,7 @@ func (l *listener) pollBlocks() error {
 					l.msTxStatistics.TotalCount++
 				}
 				for _, e := range events.Multisig_MultisigCancelled {
-					fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
+					fmt.Printf("\tSystem:detect new multisign cancel request:: (phase=%#v)\n", e.Phase)
 				}
 
 				//Triggered a cross-chain transaction

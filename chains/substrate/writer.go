@@ -10,6 +10,7 @@ import (
 	"github.com/centrifuge/go-substrate-rpc-client/v2/rpc/author"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
+	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	"math/big"
 	"time"
 	"unsafe"
@@ -20,8 +21,6 @@ import (
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
 	utils "github.com/rjman-self/Platdot/shared/substrate"
-
-	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 )
 
 var _ core.Writer = &writer{}
@@ -30,7 +29,12 @@ var AcknowledgeProposal utils.Method = utils.BridgePalletName + ".acknowledge_pr
 var TerminatedError = errors.New("terminated")
 var MultisignThreshold = 2
 var RelayerSeedOrSecret = "0x3c0c4fc26010d0512cd36a0f467375b3dbe2f207bbfda0c551b5e41ee495e909"
+var RelayerPublicKey = "0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075"
 var RelayerAddress = "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm"
+var RelayerTotalRound = int64(3)
+var RelayerRound = map[string]uint64{"Bob": 0, "Sss": 1, "Alice": 2}
+var RelayerRoundInterval = time.Second * 2
+
 var url = "ws://127.0.0.1:9944"
 
 type writer struct {
@@ -73,17 +77,15 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 
 func (w *writer) redeemTx(m msg.Message) error {
 	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
-	RelayerPublicKey := types.MustHexDecodeString("0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075")
 	sss := signature.KeyringPair{
 		URI:       RelayerSeedOrSecret,
 		Address:   RelayerAddress,
-		PublicKey: RelayerPublicKey,
+		PublicKey: types.MustHexDecodeString(RelayerPublicKey),
 	}
-	fmt.Printf("============= relayer =====================\n")
-	fmt.Printf("Relayer keyring: %v\n", sss)
-	fmt.Printf("Relayer keyring.PublicKey: %v\n", RelayerPublicKey)
-	fmt.Printf("=======================================\n")
-
+	//fmt.Printf("============= relayer =====================\n")
+	//fmt.Printf("Relayer keyring: %v\n", sss)
+	//fmt.Printf("Relayer keyring.PublicKey: %v\n", RelayerPublicKey)
+	//fmt.Printf("=======================================\n")
 	meta, err := w.conn.api.RPC.State.GetMetadataLatest()
 	if err != nil {
 		panic(err)
@@ -93,7 +95,12 @@ func (w *writer) redeemTx(m msg.Message) error {
 
 	//BEGIN: Create a call of transfer
 	method := string(utils.BalancesTransferKeepAliveMethod)
-	recipient := types.NewMultiAddressFromAccountID(m.Payload[1].([]byte))
+
+	//var add1 = m.Payload[1].([]byte)
+	//var destAddress = string(m.Payload[1].([]byte))
+	//var add3, _ = types.NewAddressFromHexAccountID(string(m.Payload[1].([]byte)))
+	recipient, _ := types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
+	//fmt.Printf("========> polkadot recipient is %v\naddr1 = %v\naddr2 = %v\naddr3 = %v\n", recipient, add1, add2, add3)
 	// convert PDOT amount to DOT amount
 	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
 	oneToken := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
@@ -127,95 +134,121 @@ func (w *writer) redeemTx(m msg.Message) error {
 	// parameters of multiSignature
 	Alice, _ := types.NewAddressFromHexAccountID("0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d")
 	Bob, _ := types.NewAddressFromHexAccountID("0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48")
-
 	var otherSignatories = []types.AccountID{Bob.AsAccountID, Alice.AsAccountID}
+	destAddress := string(m.Payload[1].([]byte))
 
-	destAddress := string(recipient.AsID[:])
-	//find a exist MultiSignTxEvent
-	var maybeTimePoint interface{}
-	var maxWeight interface{}
+	for {
+		round := big.NewInt(0)
+		round.Mod(w.listener.latestBlock.Height, big.NewInt(RelayerTotalRound)).Uint64()
+		fmt.Printf("block is %v, round is %v\n", w.listener.latestBlock.Height, round)
 
-	for k , ms := range w.listener.msTxAsMulti {
-		fmt.Printf("k is %v\nv is %v\n", k, ms)
-		if !ms.Executed && ms.DestAddress == destAddress && ms.DestAmount == bigAmt.String() {
-			maybeTimePoint = ms.OriginMsTx.BlockNumber
-			maxWeight = ms.MaxWeight
-			break
-		} else {
-			maybeTimePoint = []byte{}
-			maxWeight = types.Weight(0)
+		switch round.Uint64() {
+		case RelayerRound["Bob"]:
+			time.Sleep(RelayerRoundInterval)
+			fmt.Printf("This Round is %v\n, Bob to do everything\n", RelayerRound["Bob"])
+		case RelayerRound["Sss"]:
+			fmt.Printf("This Round is %v, Sss to do everything\n", RelayerRound["Sss"])
+			//find a exist MultiSignTxEvent
+			var maybeTimePoint interface{}
+			var maxWeight interface{}
+			type TimePointSafe32 struct {
+				Height types.OptionU32
+				Index  types.U32
+			}
+			for k, ms := range w.listener.msTxAsMulti {
+				fmt.Printf("k is %v\nv is %v\n", k, ms)
+				var dest = destAddress[2:]
+				fmt.Printf("data2 is %v\n", dest)
+				fmt.Printf("ms.DestAddress == destAddress[2:] is %v\n", ms.DestAddress == destAddress[2:])
+				var data2 = bigAmt.String()
+				fmt.Printf("data2 is %v\n", data2)
+				fmt.Printf("ms.DestAmount == bigAmt.String() is %v\n", ms.DestAmount == bigAmt.String())
+				if !ms.Executed && ms.DestAddress == dest && ms.DestAmount == bigAmt.String() {
+					height := types.U32(ms.OriginMsTx.BlockNumber)
+					value := types.NewOptionU32(height)
+					maybeTimePoint = TimePointSafe32{
+						Height: value,
+						Index:  types.U32(ms.OriginMsTx.MultiSignTxId),
+					}
+					maxWeight = types.Weight(221235000)
+					break
+				} else {
+					maybeTimePoint = []byte{}
+					maxWeight = types.Weight(221235000)
+				}
+			}
+			if len(w.listener.msTxAsMulti) == 0 {
+				maybeTimePoint = []byte{}
+				maxWeight = types.Weight(221235000)
+			}
+			//END: Create a call of transfer
+			mc, err := types.NewCall(
+				meta,
+				mulMethod,
+				threshold,
+				otherSignatories,
+				maybeTimePoint,
+				callHash,
+				false,
+				maxWeight,
+			)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("%v\n", mc)
+
+			//END: Create a call of MultiSignTransfer
+			ext := types.NewExtrinsic(mc)
+
+			genesisHash, err := w.conn.api.RPC.Chain.GetBlockHash(0)
+			if err != nil {
+				panic(err)
+			}
+
+			rv, err := w.conn.api.RPC.State.GetRuntimeVersionLatest()
+			if err != nil {
+				panic(err)
+			}
+
+			key, err := types.CreateStorageKey(meta, "System", "Account", sss.PublicKey, nil)
+			if err != nil {
+				panic(err)
+			}
+
+			var accountInfo types.AccountInfo
+			//ok, err := api.RPC.State.GetStorageLatest(key, &accountInfo)
+			ok, err := w.conn.api.RPC.State.GetStorageLatest(key, &accountInfo)
+			if err != nil || !ok {
+				panic(err)
+			}
+			nonce := uint32(accountInfo.Nonce)
+
+			o := types.SignatureOptions{
+				BlockHash:          genesisHash,
+				Era:                types.ExtrinsicEra{IsMortalEra: false},
+				GenesisHash:        genesisHash,
+				Nonce:              types.NewUCompactFromUInt(uint64(nonce)),
+				SpecVersion:        rv.SpecVersion,
+				Tip:                types.NewUCompactFromUInt(0),
+				TransactionVersion: rv.TransactionVersion,
+			}
+			err = ext.MultiSign(sss, o)
+			if err != nil {
+				panic(err)
+			}
+			// Do the transfer and track the actual status
+			sub, err := w.conn.api.RPC.Author.SubmitAndWatchExtrinsic(ext)
+
+			err = w.watchSubmission(sub)
+			if err != nil {
+				fmt.Printf("subWriter meet err: %v\n", err)
+			}
+			return err
+		case RelayerRound["Alice"]:
+			time.Sleep(RelayerRoundInterval)
+			fmt.Printf("This Round is %v\n, Alice to do everything\n", RelayerRound["Alice"])
 		}
 	}
-
-	if len(w.listener.msTxAsMulti) == 0 {
-		maybeTimePoint = []byte{}
-		maxWeight = types.Weight(0)
-	}
-	//END: Create a call of transfer
-
-	mc, err := types.NewCall(
-		meta,
-		mulMethod,
-		threshold,
-		otherSignatories,
-		maybeTimePoint,
-		callHash,
-		false,
-		maxWeight,
-	)
-
-	fmt.Printf("%v\n", mc)
-
-	//END: Create a call of MultiSignTransfer
-	ext := types.NewExtrinsic(mc)
-
-	genesisHash, err := w.conn.api.RPC.Chain.GetBlockHash(0)
-	if err != nil {
-		panic(err)
-	}
-
-	rv, err := w.conn.api.RPC.State.GetRuntimeVersionLatest()
-	if err != nil {
-		panic(err)
-	}
-
-	key, err := types.CreateStorageKey(meta, "System", "Account", RelayerPublicKey, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	var accountInfo types.AccountInfo
-	//ok, err := api.RPC.State.GetStorageLatest(key, &accountInfo)
-	ok, err := w.conn.api.RPC.State.GetStorageLatest(key, &accountInfo)
-	if err != nil || !ok {
-		panic(err)
-	}
-
-	nonce := uint32(accountInfo.Nonce)
-
-	o := types.SignatureOptions{
-		BlockHash:          genesisHash,
-		Era:                types.ExtrinsicEra{IsMortalEra: false},
-		GenesisHash:        genesisHash,
-		Nonce:              types.NewUCompactFromUInt(uint64(nonce)),
-		SpecVersion:        rv.SpecVersion,
-		Tip:                types.NewUCompactFromUInt(0),
-		TransactionVersion: rv.TransactionVersion,
-	}
-
-	err = ext.MultiSign(sss, o)
-	if err != nil {
-		panic(err)
-	}
-
-	// Do the transfer and track the actual status
-	sub, err := w.conn.api.RPC.Author.SubmitAndWatchExtrinsic(ext)
-
-	err = w.watchSubmission(sub)
-	if err != nil {
-		fmt.Printf("subWriter meet err: %v\n", err)
-	}
-	return err
 }
 
 func (w *writer) watchSubmission(sub *author.ExtrinsicStatusSubscription) error {

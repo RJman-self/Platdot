@@ -102,6 +102,7 @@ func (l *listener) pollBlocks() error {
 	l.log.Info("Polling Blocks...")
 	var currentBlock = l.cfg.startBlock
 	var retry = BlockRetryLimit
+
 	for {
 		select {
 		case <-l.stop:
