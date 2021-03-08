@@ -68,10 +68,10 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 
 	//krp := kp.(*sr25519.Keypair).AsKeyringPair()
 
-	sssPk := types.MustHexDecodeString("0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075")
+	sssPk := types.MustHexDecodeString("0x0a19674301c56a1721feb98dbe93cfab911a8c1bed127f598ef93b374bcc6e71")
 
-	var seed = "0x3c0c4fc26010d0512cd36a0f467375b3dbe2f207bbfda0c551b5e41ee495e909"
-	var addr = "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm"
+	var seed = "0x68341ec5d0c60361873c98043c1bd7ff840b14d66c518164ac9a95e5fa067443"
+	var addr = "5CHwt8bFyDLC3MyzPQugmmxZTGjShBW2kFMWiC2kSL5TuJxd"
 	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
 
 	sss := signature.KeyringPair{
@@ -88,12 +88,12 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		return nil, err
 	}
 	startBlock := parseStartBlock(cfg)
-	if !cfg.FreshStart {
-		startBlock, err = checkBlockstore(bs, startBlock)
-		if err != nil {
-			return nil, err
-		}
-	}
+	//if !cfg.FreshStart {
+	//	startBlock, err = checkBlockstore(bs, startBlock)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//}
 
 	stop := make(chan int)
 	// Setup connection

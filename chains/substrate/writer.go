@@ -28,12 +28,12 @@ var _ core.Writer = &writer{}
 var AcknowledgeProposal utils.Method = utils.BridgePalletName + ".acknowledge_proposal"
 var TerminatedError = errors.New("terminated")
 var MultisignThreshold = 2
-var RelayerSeedOrSecret = "0x3c0c4fc26010d0512cd36a0f467375b3dbe2f207bbfda0c551b5e41ee495e909"
-var RelayerPublicKey = "0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075"
-var RelayerAddress = "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm"
+var RelayerSeedOrSecret = "0x68341ec5d0c60361873c98043c1bd7ff840b14d66c518164ac9a95e5fa067443"
+var RelayerPublicKey = "0x0a19674301c56a1721feb98dbe93cfab911a8c1bed127f598ef93b374bcc6e71"
+var RelayerAddress = "5CHwt8bFyDLC3MyzPQugmmxZTGjShBW2kFMWiC2kSL5TuJxd"
 var RelayerTotalRound = int64(3)
-var RelayerRound = map[string]uint64{"Bob": 0, "Sss": 1, "Alice": 2}
-var RelayerRoundInterval = time.Second * 2
+var RelayerRound = map[string]uint64{"Sss": 0, "Hhh": 2, "Alice": 1}
+var RelayerRoundInterval = time.Second * 1
 
 var url = "ws://127.0.0.1:9944"
 
@@ -66,12 +66,20 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 }
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
-	fmt.Printf("--------------------------Writer try to make a MultiSignTransfer------------------------------------------\n")
-	err := w.redeemTx(m)
-	if err != nil {
-		fmt.Printf("reemTx failed! Error is %v\n", err)
+	w.log.Info("--------------------------Writer try to make a MultiSignTransfer------------------------------------------\n")
+	//err := w.redeemTx(m)
+	//if err != nil {
+	//	w.log.Info("reemTx failed! Error is %v\n", err)
+	//}
+	var RetryLimit = 3
+	for i := 0; i < RetryLimit ; i ++{
+		err := w.redeemTx(m)
+		if err != nil {
+			w.log.Info("reemTx failed! Error is %v\n", err)
+		}
 	}
-	fmt.Printf("--------------------------Writer succeed made a MultiSignTransfer------------------------------------------\n")
+
+	w.log.Info("--------------------------Writer succeed made a MultiSignTransfer------------------------------------------\n")
 	return true
 }
 
@@ -82,10 +90,10 @@ func (w *writer) redeemTx(m msg.Message) error {
 		Address:   RelayerAddress,
 		PublicKey: types.MustHexDecodeString(RelayerPublicKey),
 	}
-	//fmt.Printf("============= relayer =====================\n")
-	//fmt.Printf("Relayer keyring: %v\n", sss)
-	//fmt.Printf("Relayer keyring.PublicKey: %v\n", RelayerPublicKey)
-	//fmt.Printf("=======================================\n")
+	//w.log.Info("============= relayer =====================\n")
+	//w.log.Info("Relayer keyring: %v\n", sss)
+	//w.log.Info("Relayer keyring.PublicKey: %v\n", RelayerPublicKey)
+	//w.log.Info("=======================================\n")
 	meta, err := w.conn.api.RPC.State.GetMetadataLatest()
 	if err != nil {
 		panic(err)
@@ -100,13 +108,13 @@ func (w *writer) redeemTx(m msg.Message) error {
 	//var destAddress = string(m.Payload[1].([]byte))
 	//var add3, _ = types.NewAddressFromHexAccountID(string(m.Payload[1].([]byte)))
 	recipient, _ := types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
-	//fmt.Printf("========> polkadot recipient is %v\naddr1 = %v\naddr2 = %v\naddr3 = %v\n", recipient, add1, add2, add3)
+	//w.log.Info("========> polkadot recipient is %v\naddr1 = %v\naddr2 = %v\naddr3 = %v\n", recipient, add1, add2, add3)
 	// convert PDOT amount to DOT amount
 	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
-	oneToken := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
+	oneToken := new(big.Int).Exp(big.NewInt(6), big.NewInt(6), nil)
 	bigAmt.Div(bigAmt, oneToken)
-	amount := types.NewUCompactFromUInt(bigAmt.Uint64())
-
+	//amount := types.NewUCompactFromUInt(bigAmt.Uint64())
+	amount := types.NewUCompactFromUInt(600000000000000)
 	//create a transfer_keep_alive call
 	c, err := types.NewCall(
 		meta,
@@ -123,31 +131,27 @@ func (w *writer) redeemTx(m msg.Message) error {
 	_ = encoderGoRPC.Encode(c)
 	callHash := buffer.Bytes()
 
-	fmt.Printf("====================================\n")
-	fmt.Printf("c_hash = %v\n", callHash)
-	fmt.Printf("====================================\n")
-
 	//BEGIN: Create a call of MultiSignTransfer
 	mulMethod := string(utils.MultisigAsMulti)
 	var threshold = uint16(MultisignThreshold)
 
 	// parameters of multiSignature
 	Alice, _ := types.NewAddressFromHexAccountID("0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d")
-	Bob, _ := types.NewAddressFromHexAccountID("0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48")
-	var otherSignatories = []types.AccountID{Bob.AsAccountID, Alice.AsAccountID}
+	Sss, _ := types.NewAddressFromHexAccountID("0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075")
+	var otherSignatories = []types.AccountID{Sss.AsAccountID, Alice.AsAccountID}
 	destAddress := string(m.Payload[1].([]byte))
 
 	for {
 		round := big.NewInt(0)
 		round.Mod(w.listener.latestBlock.Height, big.NewInt(RelayerTotalRound)).Uint64()
-		fmt.Printf("block is %v, round is %v\n", w.listener.latestBlock.Height, round)
+		w.log.Info("", "BlockHeight", w.listener.latestBlock.Height, "Round", round)
 
 		switch round.Uint64() {
-		case RelayerRound["Bob"]:
-			time.Sleep(RelayerRoundInterval)
-			fmt.Printf("This Round is %v\n, Bob to do everything\n", RelayerRound["Bob"])
 		case RelayerRound["Sss"]:
-			fmt.Printf("This Round is %v, Sss to do everything\n", RelayerRound["Sss"])
+			time.Sleep(RelayerRoundInterval)
+			w.log.Info("This Round is %v\n, Bob to do everything\n", RelayerRound["Bob"])
+		case RelayerRound["Hhh"]:
+			w.log.Info("This Round is %v, Sss to do everything\n", RelayerRound["Sss"])
 			//find a exist MultiSignTxEvent
 			var maybeTimePoint interface{}
 			var maxWeight interface{}
@@ -156,31 +160,36 @@ func (w *writer) redeemTx(m msg.Message) error {
 				Index  types.U32
 			}
 			for k, ms := range w.listener.msTxAsMulti {
-				fmt.Printf("k is %v\nv is %v\n", k, ms)
+				w.log.Info("k is %v\nv is %v\n", k, ms)
 				var dest = destAddress[2:]
-				fmt.Printf("data2 is %v\n", dest)
-				fmt.Printf("ms.DestAddress == destAddress[2:] is %v\n", ms.DestAddress == destAddress[2:])
+				w.log.Info("data2 is %v\n", dest)
+				w.log.Info("ms.DestAddress == destAddress[2:] is %v\n", ms.DestAddress == destAddress[2:])
 				var data2 = bigAmt.String()
-				fmt.Printf("data2 is %v\n", data2)
-				fmt.Printf("ms.DestAmount == bigAmt.String() is %v\n", ms.DestAmount == bigAmt.String())
-				if !ms.Executed && ms.DestAddress == dest && ms.DestAmount == bigAmt.String() {
+				w.log.Info("data2 is %v\n", data2)
+				w.log.Info("ms.DestAmount == bigAmt.String() is %v\n", ms.DestAmount == bigAmt.String())
+				if ms.Executed {
+					return nil
+				}
+				//if ms.DestAddress == dest && ms.DestAmount == bigAmt.String() {
+				if ms.DestAddress == dest {
 					height := types.U32(ms.OriginMsTx.BlockNumber)
 					value := types.NewOptionU32(height)
 					maybeTimePoint = TimePointSafe32{
 						Height: value,
 						Index:  types.U32(ms.OriginMsTx.MultiSignTxId),
 					}
-					maxWeight = types.Weight(221235000)
+					maxWeight = types.Weight(2269800000)
 					break
 				} else {
 					maybeTimePoint = []byte{}
-					maxWeight = types.Weight(221235000)
+					maxWeight = types.Weight(2269800000)
 				}
 			}
 			if len(w.listener.msTxAsMulti) == 0 {
 				maybeTimePoint = []byte{}
-				maxWeight = types.Weight(221235000)
+				maxWeight = types.Weight(2269800000)
 			}
+			fmt.Printf("find match tp: %v\n", maybeTimePoint)
 			//END: Create a call of transfer
 			mc, err := types.NewCall(
 				meta,
@@ -195,7 +204,7 @@ func (w *writer) redeemTx(m msg.Message) error {
 			if err != nil {
 				panic(err)
 			}
-			fmt.Printf("%v\n", mc)
+			w.log.Info("%v\n", mc)
 
 			//END: Create a call of MultiSignTransfer
 			ext := types.NewExtrinsic(mc)
@@ -239,14 +248,34 @@ func (w *writer) redeemTx(m msg.Message) error {
 			// Do the transfer and track the actual status
 			sub, err := w.conn.api.RPC.Author.SubmitAndWatchExtrinsic(ext)
 
-			err = w.watchSubmission(sub)
-			if err != nil {
-				fmt.Printf("subWriter meet err: %v\n", err)
+			for {
+				select {
+				case status := <-sub.Chan():
+					switch {
+					case status.IsInBlock:
+						fmt.Printf("Extrinsic included in block\n", "block", status.AsInBlock.Hex())
+						return nil
+					case status.IsRetracted:
+						w.log.Info("extrinsic retracted: %s", status.AsRetracted.Hex())
+					case status.IsDropped:
+						w.log.Info("extrinsic dropped from network")
+					case status.IsInvalid:
+						w.log.Info("extrinsic invalid")
+					}
+				case err := <-sub.Err():
+					w.log.Trace("Extrinsic subscription error", "err", err)
+					return err
+				}
 			}
+
+			//err = w.watchSubmission(sub)
+			//if err != nil {
+			//	w.log.Info("subWriter meet err: %v\n", err)
+			//}
 			return err
 		case RelayerRound["Alice"]:
 			time.Sleep(RelayerRoundInterval)
-			fmt.Printf("This Round is %v\n, Alice to do everything\n", RelayerRound["Alice"])
+			w.log.Info("This Round is %v\n, Alice to do everything\n", RelayerRound["Alice"])
 		}
 	}
 }
@@ -257,14 +286,14 @@ func (w *writer) watchSubmission(sub *author.ExtrinsicStatusSubscription) error 
 		case status := <-sub.Chan():
 			switch {
 			case status.IsInBlock:
-				w.log.Trace("Extrinsic included in block", "block", status.AsInBlock.Hex())
+				w.log.Info("Extrinsic included in block", "block", status.AsInBlock.Hex())
 				return nil
 			case status.IsRetracted:
-				fmt.Printf("extrinsic retracted: %s", status.AsRetracted.Hex())
+				w.log.Info("extrinsic retracted: %s", status.AsRetracted.Hex())
 			case status.IsDropped:
-				fmt.Printf("extrinsic dropped from network")
+				w.log.Info("extrinsic dropped from network")
 			case status.IsInvalid:
-				fmt.Printf("extrinsic invalid")
+				w.log.Info("extrinsic invalid")
 			}
 		case err := <-sub.Err():
 			w.log.Trace("Extrinsic subscription error", "err", err)
@@ -277,10 +306,10 @@ func (w *writer) redeemTxByAlice(m msg.Message) bool {
 	kr := signature.TestKeyringPairAlice
 	krp := signature.TestKeyringPairAlice.PublicKey
 
-	fmt.Printf("============= relayer =====================\n")
-	fmt.Printf("Relayer keyring: %v\n", kr)
-	fmt.Printf("Relayer keyring.PublicKey: %v\n", krp)
-	fmt.Printf("=======================================\n")
+	w.log.Info("============= relayer =====================\n")
+	w.log.Info("Relayer keyring: %v\n", kr)
+	w.log.Info("Relayer keyring.PublicKey: %v\n", krp)
+	w.log.Info("=======================================\n")
 
 	meta, err := w.conn.api.RPC.State.GetMetadataLatest()
 	if err != nil {
@@ -312,9 +341,9 @@ func (w *writer) redeemTxByAlice(m msg.Message) bool {
 	_ = encoderGoRPC.Encode(c)
 	callHash := buffer.Bytes()
 
-	fmt.Printf("====================================\n")
-	fmt.Printf("c_hash = %v\n", callHash)
-	fmt.Printf("====================================\n")
+	w.log.Info("====================================\n")
+	w.log.Info("c_hash = %v\n", callHash)
+	w.log.Info("====================================\n")
 
 	//BEGIN: Create a call of MultiSignTransfer
 	mulMethod := "Multisig.as_multi"
@@ -343,7 +372,7 @@ func (w *writer) redeemTxByAlice(m msg.Message) bool {
 	//}
 
 	var maybeTimePoint = []byte{}
-	var maxWeight = types.Weight(222521000)
+	var maxWeight = types.Weight(2269800000)
 
 	//END: Create a call of transfer
 
@@ -358,7 +387,7 @@ func (w *writer) redeemTxByAlice(m msg.Message) bool {
 		maxWeight,
 	)
 
-	fmt.Printf("%v\n", mc)
+	w.log.Info("%v\n", mc)
 
 	//END: Create a call of MultiSignTransfer
 	ext := types.NewExtrinsic(mc)
@@ -417,9 +446,9 @@ func (w *writer) redeemTxByAlice(m msg.Message) bool {
 
 	for {
 		status := <-sub.Chan()
-		//fmt.Printf("Transaction status: %#v\n", status)
+		//w.log.Info("Transaction status: %#v\n", status)
 		if status.IsFinalized {
-			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
+			w.log.Info("Completed at block hash: %#x\n", status.AsFinalized)
 		}
 	}
 }
@@ -492,7 +521,7 @@ func (w *writer) redeemSimpleTx(m msg.Message) bool {
 		Tip:                types.NewUCompactFromUInt(0),
 		TransactionVersion: rv.TransactionVersion,
 	}
-	fmt.Printf("Sending %v from %#x to %#x with nonce %v", amount, signature.TestKeyringPairAlice.PublicKey, recipient.AsAccountID, nonce)
+	w.log.Info("Sending %v from %#x to %#x with nonce %v", amount, signature.TestKeyringPairAlice.PublicKey, recipient.AsAccountID, nonce)
 
 	// Sign the transaction using Alice's default account
 	err = ext.Sign(signature.TestKeyringPairAlice, o)
@@ -510,10 +539,10 @@ func (w *writer) redeemSimpleTx(m msg.Message) bool {
 
 	for {
 		status := <-sub.Chan()
-		fmt.Printf("Transaction status: %#v\n", status)
+		w.log.Info("Transaction status: %#v\n", status)
 
 		if status.IsFinalized {
-			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
+			w.log.Info("Completed at block hash: %#x\n", status.AsFinalized)
 		}
 	}
 }
@@ -621,9 +650,9 @@ func (w *writer) redeemMultiSignTx(m msg.Message) bool {
 		TransactionVersion: rv.TransactionVersion,
 	}
 
-	fmt.Printf("===================================================================================")
-	fmt.Printf("Multisign: Sending %v from %#x to %#x with nonce %v", amount, signature.TestKeyringPairAlice.PublicKey, recipient.AsAccountID, nonce)
-	fmt.Printf("===================================================================================")
+	w.log.Info("===================================================================================")
+	w.log.Info("Multisign: Sending %v from %#x to %#x with nonce %v", amount, signature.TestKeyringPairAlice.PublicKey, recipient.AsAccountID, nonce)
+	w.log.Info("===================================================================================")
 
 	// Sign the transaction using Alice's default account
 	//nnn,err := signature.KeyringPairFromSecret(
@@ -652,11 +681,11 @@ func (w *writer) redeemMultiSignTx(m msg.Message) bool {
 
 	for {
 		status := <-sub.Chan()
-		fmt.Printf("Transaction status: %#v\n", status)
+		w.log.Info("Transaction status: %#v\n", status)
 
 		if status.IsFinalized {
 			//w.conn.api.
-			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
+			w.log.Info("Completed at block hash: %#x\n", status.AsFinalized)
 		}
 	}
 }
@@ -736,7 +765,7 @@ func (w *writer) redeemMultiSignTx(m msg.Message) bool {
 //		TransactionVersion: rv.TransactionVersion,
 //	}
 //
-//	fmt.Printf("Sending %v from %#x to %#x with nonce %v", amount, signature.TestKeyringPairAlice.PublicKey, fred.AsAccountID, nonce)
+//	w.log.Info("Sending %v from %#x to %#x with nonce %v", amount, signature.TestKeyringPairAlice.PublicKey, fred.AsAccountID, nonce)
 //
 //	// Sign the transaction using Alice's default account
 //	err = ext.Sign(signature.TestKeyringPairAlice, o)
@@ -754,10 +783,10 @@ func (w *writer) redeemMultiSignTx(m msg.Message) bool {
 //
 //	for {
 //		status := <-sub.Chan()
-//		fmt.Printf("Transaction status: %#v\n", status)
+//		w.log.Info("Transaction status: %#v\n", status)
 //
 //		if status.IsFinalized {
-//			fmt.Printf("Completed at block hash: %#x\n", status.AsFinalized)
+//			w.log.Info("Completed at block hash: %#x\n", status.AsFinalized)
 //			return
 //		}
 //	}

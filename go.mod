@@ -4,7 +4,7 @@ go 1.15
 
 replace github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0 => github.com/RJman-self/go-substrate-rpc-client/v2 v2.1.1-0.20210228105504-31eab1ed089b
 
-replace github.com/ethereum/go-ethereum v1.9.25 => /home/rjman/Projects/BlockChain/lib/go-ethereum/
+replace github.com/ethereum/go-ethereum v1.9.25 => /home/hacpy/GolandProjects/mod/go-ethereum
 
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 

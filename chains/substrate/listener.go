@@ -56,7 +56,7 @@ var BlockRetryLimit = 5
 var AKSM = "0x0000000000000000000000000000000000000000000000000000000000000000"
 var chainSub = 1
 var chainAlaya = 222
-var MultiSignAddress = "0xbc1d0c69609ecf7cf6513415502b96247cf1747bfde31427462b2406d2f13746"
+var MultiSignAddress = "0x6927024a61cd5f34bbd483b5715d396febaf559071cdb42c2759cbc25621889c"
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,
 	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics) *listener {
@@ -358,8 +358,14 @@ func (l *listener) pollBlocks() error {
 						}
 					}
 					msTxAsMulti.OriginMsTx = l.msTxStatistics.CurrentTx
-
-					delete(l.msTxAsMulti, l.msTxStatistics.CurrentTx)
+					for k, ms := range l.msTxAsMulti {
+						if !ms.Executed && ms.DestAddress == msTxAsMulti.DestAddress && ms.DestAmount == ms.DestAmount {
+							exeMsTx := l.msTxAsMulti[k]
+							exeMsTx.Executed = true
+							l.msTxAsMulti[k] = exeMsTx
+						}
+					}
+					//delete(l.msTxAsMulti, l.msTxStatistics.CurrentTx)
 					l.msTxStatistics.TotalCount++
 				}
 				for _, e := range events.Multisig_MultisigCancelled {

@@ -6,8 +6,6 @@ package ethereum
 import (
 	"context"
 	"errors"
-	"fmt"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"time"
@@ -33,44 +31,13 @@ var ErrFatalQuery = errors.New("query of chain state failed")
 
 // proposalIsComplete returns true if the proposal state is either Passed, Transferred or Cancelled
 func (w *writer) proposalIsComplete(srcId msg.ChainId, nonce msg.Nonce, dataHash [32]byte) bool {
-	data := "0x0000000000000000000000000000000000000000000000000000000000000000"
-	datahash, _ := types.HexDecodeString(data)
-	var reallyData [32]byte
-	copy(reallyData[:], datahash)
-	existProp, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), 1, 0, reallyData)
-	fmt.Printf("existProp is %v\n", existProp)
-
-	//resourceID := "0x0000000000000000000000000000000000000000000000000000000000000000"
-	//platonHandler := "atp1rd7pjyygepf3r8a8zk8y25n3d3hy249whnuayy"
-	//ethHandler, _ := common.PlatonToEth(platonHandler)
-	//handler := common.BytesToAddress(ethHandler)
-
-	//w.bridgeContract.AdminSetResource(w.conn.CallOpts(), handler, )
-
-	//rawTx, err := w.bridgeContract.AdminChangeRelayerThreshold(w.conn.CallOpts(), 2)
-
-	rjman := "atx1sy2tvmghdv47hwz89yu9wz2y29nd0frr0578e3"
-	rjmanEth, _ := common.PlatonToEth(rjman)
-	isRelayer, err := w.bridgeContract.IsRelayer(w.conn.CallOpts(), common.BytesToAddress(rjmanEth))
-	if err != nil {
-		fmt.Printf("err is %v\n", err)
-	}
-	fmt.Printf(rjman, " is %v is \n", isRelayer)
-
-
-	totalRelayers, err := w.bridgeContract.TotalRelayers(w.conn.CallOpts())
-	if err != nil {
-		fmt.Printf("err is %v\n", err)
-	}
-	fmt.Printf("totalRelayers is %v\n", totalRelayers)
-
 	prop, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), uint8(srcId), uint64(nonce), dataHash)
-	//prop, err := w.bridgeContract.GetProposal(w.conn.CallOpts(), 1, 967551, data)
 
 	if err != nil {
 		w.log.Error("Failed to check proposal existence", "err", err)
 		return false
 	}
+
 	return prop.Status == PassedStatus || prop.Status == TransferredStatus || prop.Status == CancelledStatus
 }
 
@@ -129,7 +96,7 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 	eth, _ := common.PlatonToEth(atp)
 	platon, _ := common.EthToPlaton(eth)
 	m.Payload[1] = eth
-	fmt.Printf("writer msg =>\natp is %v\n0x is %v\neth is %s\nplaton is %v\nethToatp is %v\n", atp, eth, eth, platon)
+	log.Info("writer msg =>\natp is %v\n0x is %v\neth is %s\nplaton is %v\nethToatp is %v\n", atp, eth, eth, platon)
 
 	data := ConstructErc20ProposalData(m.Payload[0].([]byte), m.Payload[1].([]byte))
 	dataHash := utils.Hash(append(w.cfg.erc20HandlerContract.Bytes(), data...))
@@ -155,23 +122,21 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 	go w.watchThenExecute(m, data, dataHash, latestBlock)
 
 	w.voteProposal(m, dataHash)
-	w.executeProposal(m, data, dataHash)
 
-	dataReturn := utils.ConstructErc20DepositData([]byte(PolkadotRecipient), big.NewInt(555))
-	//dataHashReturn := common.BytesToHash(data)
-	//fmt.Printf("%v\n", dataHash)
-	w.conn.Opts().Nonce = w.conn.Opts().Nonce.Add(w.conn.Opts().Nonce, big.NewInt(1))
-	DepositTx, err := w.bridgeContract.Deposit(
-		w.conn.Opts(),
-		uint8(m.Source),
-		m.ResourceId,
-		dataReturn,
-	)
-	fmt.Printf("dataReturn is %v\n", dataReturn)
-	fmt.Printf("DepositTx is %v\n", DepositTx)
-	if err != nil {
-		fmt.Printf("err is %v\n", err)
-	}
+	//dataReturn := utils.ConstructErc20DepositData([]byte(PolkadotRecipient), big.NewInt(5000000000000000000))
+	//w.conn.Opts().Nonce = w.conn.Opts().Nonce.Add(w.conn.Opts().Nonce, big.NewInt(1))
+	//w.conn.Opts().Value = big.NewInt(0)
+	//DepositTx, err := w.bridgeContract.Deposit(
+	//	w.conn.Opts(),
+	//	uint8(m.Source),
+	//	m.ResourceId,
+	//	dataReturn,
+	//)
+	//
+	//log.Info("Deposit Result:", "dataReturn", dataReturn, "DepositTx", DepositTx)
+	//if err != nil {
+	//	log.Info("err is %v\n", err)
+	//}
 	return true
 }
 
@@ -253,9 +218,9 @@ func (w *writer) watchThenExecute(m msg.Message, data []byte, dataHash [32]byte,
 		case <-w.stop:
 			return
 		default:
-			// watch for the lastest block, retry up to BlockRetryLimit times
+			//watch for the lastest block, retry up to BlockRetryLimit times
 			for waitRetrys := 0; waitRetrys < BlockRetryLimit; waitRetrys++ {
-				err := w.conn.WaitForBlock(latestBlock, w.cfg.blockConfirmations)
+				err := w.conn.WaitForBlock(latestBlock, big.NewInt(1))
 				if err != nil {
 					w.log.Error("Waiting for block failed", "err", err)
 					// Exit if retries exceeded
@@ -279,9 +244,12 @@ func (w *writer) watchThenExecute(m msg.Message, data []byte, dataHash [32]byte,
 
 			// execute the proposal once we find the matching finalized event
 			for _, evt := range evts {
-				sourceId := evt.Topics[1].Big().Uint64()
-				depositNonce := evt.Topics[2].Big().Uint64()
-				status := evt.Topics[3].Big().Uint64()
+				w.log.Info("Proposal log")
+
+				sourceId := common.BytesToHash(evt.Data[:32]).Big().Uint64()
+				depositNonce := common.BytesToHash(evt.Data[33:64]).Big().Uint64()
+				status := common.BytesToHash(evt.Data[65:96]).Big().Uint64()
+				log.Info("events message:", "sourceID", sourceId, "depositNonce", depositNonce, "status", status)
 
 				if m.Source == msg.ChainId(sourceId) &&
 					m.DepositNonce.Big().Uint64() == depositNonce &&
