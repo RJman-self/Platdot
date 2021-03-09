@@ -25,9 +25,9 @@ var _ core.Writer = &writer{}
 
 var TerminatedError = errors.New("terminated")
 var MultiSignThreshold = 2
-var RelayerSeedOrSecret = "0x3c0c4fc26010d0512cd36a0f467375b3dbe2f207bbfda0c551b5e41ee495e909"
-var RelayerPublicKey = "0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075"
-var RelayerAddress = "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm"
+var RelayerSeedOrSecret = "0x68341ec5d0c60361873c98043c1bd7ff840b14d66c518164ac9a95e5fa067443"
+var RelayerPublicKey = "0x0a19674301c56a1721feb98dbe93cfab911a8c1bed127f598ef93b374bcc6e71"
+var RelayerAddress = "5CHwt8bFyDLC3MyzPQugmmxZTGjShBW2kFMWiC2kSL5TuJxd"
 var RelayerRoundTotal = int64(3)
 var RelayerRound = map[string]uint64{"Sss": 0, "Hhh": 2, "Alice": 1}
 var RelayerRoundInterval = time.Second * 2
@@ -46,7 +46,7 @@ type writer struct {
 }
 
 func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics, extendCall bool) *writer {
-	Hhh, _ := types.NewAddressFromHexAccountID("0x0a19674301c56a1721feb98dbe93cfab911a8c1bed127f598ef93b374bcc6e71")
+	Sss, _ := types.NewAddressFromHexAccountID("0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075")
 	Alice, _ := types.NewAddressFromHexAccountID("0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d")
 	return &writer{
 		conn:       conn,
@@ -61,7 +61,7 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 			PublicKey: types.MustHexDecodeString(RelayerPublicKey),
 		},
 		otherSignatories: []types.AccountID{
-			Hhh.AsAccountID,
+			Sss.AsAccountID,
 			Alice.AsAccountID,
 		},
 	}
@@ -69,7 +69,7 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	fmt.Printf("--------------------------Writer try to make a MultiSignTransfer------------------------------------------\n")
-	var RetryLimit = 3
+	var RetryLimit = 6
 	for i := 0; i < RetryLimit; i++ {
 		err := w.redeemTx(m)
 		if err != nil {
@@ -236,8 +236,9 @@ func (w *writer) submitTx(c types.Call) {
 	/// Do the transfer and track the actual status
 	sub, err := w.conn.api.RPC.Author.SubmitAndWatchExtrinsic(ext)
 
+	fmt.Printf("sub is \n", sub)
 	/// Watch the Result
-	err = w.watchSubmission(sub)
+	//err = w.watchSubmission(sub)
 	if err != nil {
 		fmt.Printf("subWriter meet err: %v\n", err)
 	}

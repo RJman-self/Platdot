@@ -151,7 +151,7 @@ func importPrivKey(ctx *cli.Context, keytype, datadir, key string, password []by
 
 	if keytype == "" {
 		log.Info("Using default key type", "type", keytype)
-		keytype = crypto.Secp256k1Type
+		keytype = crypto.Sr25519Type
 	}
 
 	var kp crypto.Keypair

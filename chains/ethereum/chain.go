@@ -21,11 +21,12 @@ The writer recieves the message and creates a proposals on-chain. Once a proposa
 package ethereum
 
 import (
-	"fmt"
 	"github.com/ChainSafe/chainbridge-utils/blockstore"
 	"github.com/ChainSafe/chainbridge-utils/core"
 	"github.com/ChainSafe/chainbridge-utils/crypto/secp256k1"
-	"github.com/rjman-self/Platdot/config"
+	"github.com/ChainSafe/chainbridge-utils/keystore"
+
+	//"github.com/rjman-self/Platdot/config"
 	"math/big"
 	//"github.com/ChainSafe/chainbridge-utils/keystore"
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
@@ -42,9 +43,6 @@ import (
 var _ core.Chain = &Chain{}
 
 var _ Connection = &connection.Connection{}
-
-var PolkadotRecipient = "0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c"
-var PrivateKey = "e5425865ee39b8f995553ee3135c9060b6296c120d4063f45511e3d2a1654266"
 
 type Connection interface {
 	Connect() error
@@ -94,11 +92,18 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 	if err != nil {
 		return nil, err
 	}
-	//kp, _ := kpI.(*secp256k1.Keypair)
-	kp, _ := secp256k1.NewKeypairFromString(PrivateKey)
 
-	//kp, _ := kpI.(*sr25519.Keypair)
+	// load key
+	ethBytes, _ := common.PlatonToEth(cfg.from)
+	ethAddress := common.BytesToAddress(ethBytes)
+	kpI, err := keystore.KeypairFromAddress(ethAddress.String(), keystore.EthChain, cfg.keystorePath, chainCfg.Insecure)
+	if err != nil {
+		return nil, err
+	}
 
+	kp, _ := kpI.(*secp256k1.Keypair)
+
+	// init block store
 	bs, err := setupBlockstore(cfg, kp)
 	if err != nil {
 		return nil, err
@@ -121,11 +126,6 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 		return nil, err
 	}
 
-	chainId := uint8(config.PlatonChainId)
-	if chainId != uint8(chainCfg.Id) {
-		return nil, fmt.Errorf("chainId (%d) and configuration chainId (%d) do not match", chainId, chainCfg.Id)
-	}
-
 	erc20HandlerContract, err := erc20Handler.NewERC20Handler(cfg.erc20HandlerContract, conn.Client())
 	if err != nil {
 		return nil, err
@@ -144,13 +144,6 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 
 	writer := NewWriter(conn, cfg, logger, stop, sysErr, m)
 	writer.setContract(bridgeContract)
-
-	//Create Deposit
-
-	go func() {
-
-
-	}()
 
 	return &Chain{
 		cfg:      chainCfg,

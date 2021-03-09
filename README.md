@@ -95,7 +95,15 @@ bscdot-sol-cli bridge register-generic-resource --resourceId "0x0000000000000000
 
 ### Running A Relayer
 
-Here is an example config file for a single relayer ("Alice") using the contracts we've deployed.
+Before running a relayer, you should import your keys in polka and platon. Just:
+```bigquery
+cd Platdot &&
+./build/chainbridge accounts import --privateKey your-polka-key --sr25519 &&
+./build/chainbridge accounts import --privateKey your-platon-key --secp256k1
+```
+
+
+Also there is an example config file for a single relayer ("Alice") using the contracts we've deployed.
 
 ```
 {
@@ -134,3 +142,4 @@ Run `make build` in bscdot directory to build bscdot. You can then start a relay
 ```
 
 ## Transfer in Polkadot.js.org
+

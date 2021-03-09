@@ -236,13 +236,6 @@ func run(ctx *cli.Context) error {
 		}()
 	}
 
-	go func() {
-		//redeemTx_Alice()
-		//redeem()
-		//redeemTx()
-		//redeemTx_Utility()
-	}()
-
 	c.Start()
 
 	return nil

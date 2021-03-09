@@ -7,11 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/rjman-self/Platdot/config"
-	"math/big"
-	"sync"
-	"time"
-
 	"github.com/ChainSafe/chainbridge-utils/crypto/secp256k1"
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -19,6 +14,10 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/rjman-self/Platdot/config"
+	"math/big"
+	"sync"
+	"time"
 )
 
 var BlockRetryInterval = time.Second * 5
@@ -56,9 +55,10 @@ func NewConnection(endpoint string, http bool, kp *secp256k1.Keypair, log log15.
 
 // Connect starts the ethereum WS connection
 func (c *Connection) Connect() error {
-	c.log.Info("Connecting to ethereum chain...", "url", c.endpoint)
+	c.log.Info("Connecting to platon chain...", "url", c.endpoint)
 	var rpcClient *rpc.Client
 	var err error
+
 	// Start http or ws client
 	if c.http {
 		rpcClient, err = rpc.DialHTTP(c.endpoint)
@@ -85,15 +85,13 @@ func (c *Connection) Connect() error {
 func (c *Connection) newTransactOpts(value, gasLimit, gasPrice *big.Int) (*bind.TransactOpts, uint64, error) {
 	privateKey := c.kp.PrivateKey()
 	address := ethcrypto.PubkeyToAddress(privateKey.PublicKey)
-	fmt.Printf("%v\n", address.String())
 
 	nonce, err := c.conn.PendingNonceAt(context.Background(), address)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	id := big.NewInt(config.PlatonChainId)
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, id)
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(config.ChainId))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -175,7 +173,8 @@ func (c *Connection) LockAndUpdateOpts() error {
 }
 
 func (c *Connection) UnlockOpts() {
-	c.optsLock.Unlock()}
+	c.optsLock.Unlock()
+}
 
 // LatestBlock returns the latest block from the current chain
 func (c *Connection) LatestBlock() (*big.Int, error) {

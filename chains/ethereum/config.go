@@ -31,6 +31,7 @@ var (
 	HttpOpt               = "http"
 	StartBlockOpt         = "startBlock"
 	BlockConfirmationsOpt = "blockConfirmations"
+	PrefixOpt             = "prefix"
 )
 
 // Config encapsulates all necessary parameters in ethereum compatible forms
@@ -41,6 +42,7 @@ type Config struct {
 	from                   string      // address of key to use
 	keystorePath           string      // Location of keyfiles
 	blockstorePath         string
+	prefix                 string
 	freshStart             bool // Disables loading from blockstore at start
 	bridgeContract         common.Address
 	erc20HandlerContract   common.Address
@@ -73,6 +75,7 @@ func parseChainConfig(chainCfg *core.ChainConfig) (*Config, error) {
 		maxGasPrice:            big.NewInt(DefaultGasPrice),
 		gasMultiplier:          big.NewFloat(DefaultGasMultiplier),
 		http:                   false,
+		prefix:                 "atp",
 		startBlock:             big.NewInt(0),
 		blockConfirmations:     big.NewInt(0),
 	}
@@ -157,6 +160,11 @@ func parseChainConfig(chainCfg *core.ChainConfig) (*Config, error) {
 	} else {
 		config.blockConfirmations = big.NewInt(DefaultBlockConfirmations)
 		delete(chainCfg.Opts, BlockConfirmationsOpt)
+	}
+
+	if prefix, ok := chainCfg.Opts[PrefixOpt]; ok && prefix != "" {
+		config.prefix = prefix
+		delete(chainCfg.Opts, PrefixOpt)
 	}
 
 	if len(chainCfg.Opts) != 0 {
