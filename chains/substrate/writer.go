@@ -39,11 +39,7 @@ type writer struct {
 	msApi			 *gsrpc.SubstrateAPI
 }
 
-func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics, extendCall bool) *writer {
-
-	OtherSignatureA, _ := types.NewAddressFromHexAccountID(OtherRelayerA)
-	OtherSignatureB, _ := types.NewAddressFromHexAccountID(OtherRelayerB)
-
+func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics, extendCall bool, krp *signature.KeyringPair, otherRelayers []types.AccountID) *writer {
 	api, err := gsrpc.NewSubstrateAPI(config.Default().RPCURL)
 	if err != nil {
 		panic(err)
@@ -56,15 +52,8 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 		sysErr:     sysErr,
 		metrics:    m,
 		extendCall: extendCall,
-		kr: signature.KeyringPair{
-			URI:       RelayerSeedOrSecret,
-			Address:   RelayerAddress,
-			PublicKey: types.MustHexDecodeString(RelayerPublicKey),
-		},
-		otherSignatories: []types.AccountID{
-			OtherSignatureA.AsAccountID,
-			OtherSignatureB.AsAccountID,
-		},
+		kr: *krp,
+		otherSignatories: otherRelayers,
 		msApi:		api,
 	}
 }

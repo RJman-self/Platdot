@@ -31,7 +31,9 @@ import (
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
+	signature2 "github.com/centrifuge/go-substrate-rpc-client/v2/signature"
 	"github.com/rjmand/go-substrate-rpc-client/v2/signature"
+	"github.com/rjmand/go-substrate-rpc-client/v2/types"
 )
 
 var _ core.Chain = &Chain{}
@@ -79,7 +81,6 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	stop := make(chan int)
 
 	// Setup connection
-
 	conn := NewConnection(cfg.Endpoint, cfg.Name, (*signature.KeyringPair)(krp), logger, stop, sysErr)
 
 	err = conn.Connect()
@@ -96,10 +97,11 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	}
 
 	ue := parseUseExtended(cfg)
-
+	otherRelayers := parseOtherRelayer(cfg)
+	multisignAddress := parseMultiSignAddress(cfg)
 	// Setup listener & writer
-	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, logger, bs, stop, sysErr, m)
-	w := NewWriter(conn, l, logger, sysErr, m, ue)
+	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, logger, bs, stop, sysErr, m, types.AccountID(multisignAddress))
+	w := NewWriter(conn, l, logger, sysErr, m, ue, (*signature2.KeyringPair)(krp), otherRelayers)
 
 	return &Chain{
 		cfg:      cfg,

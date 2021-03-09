@@ -6,15 +6,10 @@ package substrate
 import (
 	"errors"
 	"fmt"
-	//_ "github.com/ChainSafe/chainbridge-utils/crypto"
 	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rjman-self/go-polkadot-rpc-client/client"
 	"strconv"
-
-	//"github.com/stafiprotocol/go-substrate-rpc-client"
-	//"github.com/stafiprotocol/go-substrate-rpc-client/config"
-	//"github.com/stafiprotocol/go-substrate-rpc-client/types"
 
 	"github.com/rjmand/go-substrate-rpc-client/v2/types"
 	"math/big"
@@ -33,7 +28,6 @@ type listener struct {
 	startBlock     uint64
 	blockStore     blockstore.Blockstorer
 	conn           *Connection
-	//subscriptions  map[eventName]eventHandler // Handlers for specific events
 	depositNonce   map[msg.Nonce]bool   //记录每个账户交易的depositNonce
 	router         chains.Router
 	log            log15.Logger
@@ -49,19 +43,15 @@ type listener struct {
 
 // Frequency of polling for a new block
 var BlockRetryInterval = time.Second * 5
-//var BlockRetryLimit = 5
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,
-	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics) *listener {
+	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, multiSignAccount types.AccountID) *listener {
 
 	c, err := client.New(url)
 	if err != nil {
 		panic(err)
 	}
 	c.SetPrefix(ss58.PolkadotPrefix)
-
-	multiSignPk, _ := types.HexDecodeString(MultiSignAddress)
-	multiSignAccount := types.NewAccountID(multiSignPk)
 
 	var multiSigAsMulti map[MultiSignTx]MultiSigAsMulti
 
@@ -71,7 +61,6 @@ func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint6
 		startBlock:    startBlock,
 		blockStore:    bs,
 		conn:          conn,
-		//subscriptions: make(map[eventName]eventHandler),
 		depositNonce:  make(map[msg.Nonce]bool),
 		log:           log,
 		stop:          stop,
