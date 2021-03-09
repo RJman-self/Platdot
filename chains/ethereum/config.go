@@ -58,7 +58,6 @@ type Config struct {
 
 // parseChainConfig uses a core.ChainConfig to construct a corresponding Config
 func parseChainConfig(chainCfg *core.ChainConfig) (*Config, error) {
-
 	config := &Config{
 		name:                   chainCfg.Name,
 		id:                     chainCfg.Id,

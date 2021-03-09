@@ -41,7 +41,7 @@ func NewWriter(conn Connection, cfg *Config, log log15.Logger, stop <-chan int, 
 }
 
 func (w *writer) start() error {
-	w.log.Debug("Starting ethereum writer...")
+	w.log.Debug("Starting Alaya writer...")
 	return nil
 }
 

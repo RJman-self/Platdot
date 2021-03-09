@@ -44,6 +44,13 @@ var _ core.Chain = &Chain{}
 
 var _ Connection = &connection.Connection{}
 
+
+var PolkadotRecipient = "0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c"
+//rjman
+var PrivateKey = "8f3980925aa12f9e5e555f641138049571b71e179cf084a007c1e9a671353519"
+//hacpy
+//var PrivateKey = "e5425865ee39b8f995553ee3135c9060b6296c120d4063f45511e3d2a1654266"
+
 type Connection interface {
 	Connect() error
 	Keypair() *secp256k1.Keypair

@@ -37,6 +37,8 @@ github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/ChainSafe/chainbridge-substrate-events v0.0.0-20201109140720-16fa3b0b7ccb h1:9x1JrVRXpYOYpw7QJzkEO3+DgcCdRqp9iGDd84rA5QQ=
 github.com/ChainSafe/chainbridge-substrate-events v0.0.0-20201109140720-16fa3b0b7ccb/go.mod h1:H5fNH57wn/j1oLifOnWEqYbfJZcOWzr7jZjKKrUckSQ=
+github.com/ChainSafe/chainbridge-utils v1.0.6 h1:DV9dNnrsU7fRG49biyRlHsPLd9Augv9lepxnP581ixM=
+github.com/ChainSafe/chainbridge-utils v1.0.6/go.mod h1:T5cOZhxdY4x0DrE0EqOnMwAPE8d4bNGqiPfN16o1rzc=
 github.com/ChainSafe/go-schnorrkel v0.0.0-20200626160457-b38283118816/go.mod h1:URdX5+vg25ts3aCh8H5IFZybJYKWhJHYMTnf+ULtoC4=
 github.com/ChainSafe/go-schnorrkel v0.0.0-20201021020641-d3c6d3118d10 h1:V22pHpfKZ/bYx/OwI3WfqUKGYQmsJ3JJ08k5lxIAdvs=
 github.com/ChainSafe/go-schnorrkel v0.0.0-20201021020641-d3c6d3118d10/go.mod h1:URdX5+vg25ts3aCh8H5IFZybJYKWhJHYMTnf+ULtoC4=
@@ -607,8 +609,14 @@ github.com/rjeczalik/notify v0.9.1 h1:CLCKso/QK1snAlnhNR/CNvNiFU2saUtjV0bx3EwNeC
 github.com/rjeczalik/notify v0.9.1/go.mod h1:rKwnCoCGeuQnwBtTSPL9Dad03Vh2n40ePRrjvIXnJho=
 github.com/rjman-self/chainbridge-utils v1.0.7 h1:qge+Pp0VDxPquWnQ/9D9CqsVXwLV8mk3FrkTREdPm2c=
 github.com/rjman-self/chainbridge-utils v1.0.7/go.mod h1:8Msjqc5wjm3sisjgDu1y4I5pFmprc7hYY52M3uCZZFY=
+github.com/rjman-self/chainbridge-utils v1.0.8 h1:4EjAHSoKxJEehhdWxsFO6zzCA66j3LvUpL9uxOqKwNE=
+github.com/rjman-self/chainbridge-utils v1.0.8/go.mod h1:sgbMyRmDx7bQZEV03zfhLI7QT7UOXApu8gPO7k/YQmY=
 github.com/rjman-self/go-polkadot-rpc-client v0.0.0-20210308051321-037127ef1d17 h1:ScM+1DxKBFmoHjlDqpFKiwhrUBqGAhjmSD5CuMLc7Ik=
 github.com/rjman-self/go-polkadot-rpc-client v0.0.0-20210308051321-037127ef1d17/go.mod h1:ukL4v8A1z7CVEofRk2u4QGbM2+43DV2wcFqQp503UFw=
+github.com/rjman-self/platdot-utils v1.0.8 h1:4r8JPuohk1PJcX1NwARDoNxf2t2UjlR9RTWnF/ZMZ34=
+github.com/rjman-self/platdot-utils v1.0.8/go.mod h1:sgbMyRmDx7bQZEV03zfhLI7QT7UOXApu8gPO7k/YQmY=
+github.com/rjman-self/platdot-utils v1.0.9 h1:ltmkkE/u+kcgxXtxeTj4ycw8VAG97gDjiZNQ6dzs4fA=
+github.com/rjman-self/platdot-utils v1.0.9/go.mod h1:7Xi94rlxQko0FJ0PAxywzxqVgQo86RJ9UO4X4rqmuUQ=
 github.com/rjmand/go-substrate-rpc-client/v2 v2.1.1-0.20210228120507-d15559aaddb1 h1:nRWoGtiklL8vxVn5pK8SV6MzRwKz+m88Pkxbhz0euDU=
 github.com/rjmand/go-substrate-rpc-client/v2 v2.1.1-0.20210228120507-d15559aaddb1/go.mod h1:opE+pB/SAyI9m2Y95pkgvtio/cf9LXq2lpW4aOQck9A=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=

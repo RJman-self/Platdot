@@ -9,11 +9,11 @@ import (
 
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
-	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
+	gsrpc "github.com/rjmand/go-substrate-rpc-client/v2"
 
-	"github.com/centrifuge/go-substrate-rpc-client/v2/rpc/author"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+	"github.com/rjmand/go-substrate-rpc-client/v2/rpc/author"
+	"github.com/rjmand/go-substrate-rpc-client/v2/signature"
+	"github.com/rjmand/go-substrate-rpc-client/v2/types"
 	utils "github.com/rjman-self/Platdot/shared/substrate"
 )
 

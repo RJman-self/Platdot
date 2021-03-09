@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ChainSafe/chainbridge-utils/core"
+	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
+	"github.com/centrifuge/go-substrate-rpc-client/v2/config"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/rpc/author"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
@@ -24,15 +26,6 @@ import (
 var _ core.Writer = &writer{}
 
 var TerminatedError = errors.New("terminated")
-var MultiSignThreshold = 2
-var RelayerSeedOrSecret = "0x68341ec5d0c60361873c98043c1bd7ff840b14d66c518164ac9a95e5fa067443"
-var RelayerPublicKey = "0x0a19674301c56a1721feb98dbe93cfab911a8c1bed127f598ef93b374bcc6e71"
-var RelayerAddress = "5CHwt8bFyDLC3MyzPQugmmxZTGjShBW2kFMWiC2kSL5TuJxd"
-var RelayerRoundTotal = int64(3)
-var RelayerRound = map[string]uint64{"Sss": 0, "Hhh": 2, "Alice": 1}
-var RelayerRoundInterval = time.Second * 2
-var MaxWeight = 2269800000
-var url = "ws://127.0.0.1:9944"
 
 type writer struct {
 	conn             *Connection
@@ -43,11 +36,19 @@ type writer struct {
 	extendCall       bool // Extend extrinsic calls to substrate with ResourceID.Used for backward compatibility with example pallet.
 	kr               signature.KeyringPair
 	otherSignatories []types.AccountID
+	msApi			 *gsrpc.SubstrateAPI
 }
 
 func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics, extendCall bool) *writer {
-	Sss, _ := types.NewAddressFromHexAccountID("0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075")
-	Alice, _ := types.NewAddressFromHexAccountID("0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d")
+
+	OtherSignatureA, _ := types.NewAddressFromHexAccountID(OtherRelayerA)
+	OtherSignatureB, _ := types.NewAddressFromHexAccountID(OtherRelayerB)
+
+	api, err := gsrpc.NewSubstrateAPI(config.Default().RPCURL)
+	if err != nil {
+		panic(err)
+	}
+
 	return &writer{
 		conn:       conn,
 		listener:   listener,
@@ -61,29 +62,32 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 			PublicKey: types.MustHexDecodeString(RelayerPublicKey),
 		},
 		otherSignatories: []types.AccountID{
-			Sss.AsAccountID,
-			Alice.AsAccountID,
+			OtherSignatureA.AsAccountID,
+			OtherSignatureB.AsAccountID,
 		},
+		msApi:		api,
 	}
 }
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	fmt.Printf("--------------------------Writer try to make a MultiSignTransfer------------------------------------------\n")
-	var RetryLimit = 6
+	var RetryLimit = 10
 	for i := 0; i < RetryLimit; i++ {
-		err := w.redeemTx(m)
-		if err != nil {
-			fmt.Printf("reemTx failed! Error is %v\n", err)
+		fmt.Printf("---", i ,"---\n")
+		finish := w.redeemTx(m)
+		if finish {
+			fmt.Print(RelayerName, " succeed finish the MultiSignTransfer\n")
+			break
 		}
 	}
 	fmt.Printf("--------------------------Writer succeed made a MultiSignTransfer------------------------------------------\n")
 	return true
 }
 
-func (w *writer) redeemTx(m msg.Message) error {
+func (w *writer) redeemTx(m msg.Message) bool {
 	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
 
-	meta, err := w.conn.api.RPC.State.GetMetadataLatest()
+	meta, err := w.msApi.RPC.State.GetMetadataLatest()
 	if err != nil {
 		panic(err)
 	}
@@ -140,7 +144,7 @@ func (w *writer) redeemTx(m msg.Message) error {
 			for _, ms := range w.listener.msTxAsMulti {
 				/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
 				if ms.Executed {
-					return nil
+					return true
 				}
 
 				/// Validate parameter
@@ -171,7 +175,7 @@ func (w *writer) redeemTx(m msg.Message) error {
 			w.submitTx(mc)
 			///END: Submit a MultiSignExtrinsic to Polkadot
 
-			return err
+			return false
 		case RelayerRound["Hhh"]:
 			time.Sleep(RelayerRoundInterval)
 			fmt.Printf("This Round is %v, Hhh to do everything\n", RelayerRound["Hhh"])
@@ -184,17 +188,18 @@ func (w *writer) redeemTx(m msg.Message) error {
 
 func (w *writer) submitTx(c types.Call) {
 	///BEGIN: Get the essential information first
-	meta, err := w.conn.api.RPC.State.GetMetadataLatest()
+
+	meta, err := w.msApi.RPC.State.GetMetadataLatest()
 	if err != nil {
 		panic(err)
 	}
 
-	genesisHash, err := w.conn.api.RPC.Chain.GetBlockHash(0)
+	genesisHash, err := w.msApi.RPC.Chain.GetBlockHash(0)
 	if err != nil {
 		panic(err)
 	}
 
-	rv, err := w.conn.api.RPC.State.GetRuntimeVersionLatest()
+	rv, err := w.msApi.RPC.State.GetRuntimeVersionLatest()
 	if err != nil {
 		panic(err)
 	}
@@ -207,7 +212,7 @@ func (w *writer) submitTx(c types.Call) {
 
 	/// Validate account and get account information
 	var accountInfo types.AccountInfo
-	ok, err := w.conn.api.RPC.State.GetStorageLatest(key, &accountInfo)
+	ok, err := w.msApi.RPC.State.GetStorageLatest(key, &accountInfo)
 	if err != nil || !ok {
 		panic(err)
 	}
@@ -234,11 +239,11 @@ func (w *writer) submitTx(c types.Call) {
 	}
 
 	/// Do the transfer and track the actual status
-	sub, err := w.conn.api.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	sub, err := w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
 
-	fmt.Printf("sub is \n", sub)
+	//fmt.Printf("sub is \n", sub)
 	/// Watch the Result
-	//err = w.watchSubmission(sub)
+	err = w.watchSubmission(sub)
 	if err != nil {
 		fmt.Printf("subWriter meet err: %v\n", err)
 	}
@@ -275,7 +280,7 @@ func (w *writer) redeemTxByAlice(m msg.Message) bool {
 	fmt.Printf("Relayer keyring.PublicKey: %v\n", krp)
 	fmt.Printf("=======================================\n")
 
-	meta, err := w.conn.api.RPC.State.GetMetadataLatest()
+	meta, err := w.msApi.RPC.State.GetMetadataLatest()
 	if err != nil {
 		panic(err)
 	}
@@ -349,12 +354,12 @@ func (w *writer) redeemTxByAlice(m msg.Message) bool {
 	//	Method:    mc,
 	//}
 
-	genesisHash, err := w.conn.api.RPC.Chain.GetBlockHash(0)
+	genesisHash, err := w.msApi.RPC.Chain.GetBlockHash(0)
 	if err != nil {
 		panic(err)
 	}
 
-	rv, err := w.conn.api.RPC.State.GetRuntimeVersionLatest()
+	rv, err := w.msApi.RPC.State.GetRuntimeVersionLatest()
 	if err != nil {
 		panic(err)
 	}
@@ -366,7 +371,7 @@ func (w *writer) redeemTxByAlice(m msg.Message) bool {
 
 	var accountInfo types.AccountInfo
 	//ok, err := api.RPC.State.GetStorageLatest(key, &accountInfo)
-	ok, err := w.conn.api.RPC.State.GetStorageLatest(key, &accountInfo)
+	ok, err := w.msApi.RPC.State.GetStorageLatest(key, &accountInfo)
 	if err != nil || !ok {
 		panic(err)
 	}
@@ -389,7 +394,7 @@ func (w *writer) redeemTxByAlice(m msg.Message) bool {
 	}
 
 	// Do the transfer and track the actual status
-	sub, err := w.conn.api.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	sub, err := w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
 	if err != nil {
 		panic(err)
 	}
@@ -406,7 +411,7 @@ func (w *writer) redeemTxByAlice(m msg.Message) bool {
 }
 
 func (w *writer) simpleTx(m msg.Message) bool {
-	meta, err := w.conn.api.RPC.State.GetMetadataLatest()
+	meta, err := w.msApi.RPC.State.GetMetadataLatest()
 	if err != nil {
 		panic(err)
 	}
@@ -438,13 +443,13 @@ func (w *writer) simpleTx(m msg.Message) bool {
 	ext := types.NewExtrinsic(c)
 
 	//genesisHash, err := api.RPC.Chain.GetBlockHash(0)
-	genesisHash, err := w.conn.api.RPC.Chain.GetBlockHash(0)
+	genesisHash, err := w.msApi.RPC.Chain.GetBlockHash(0)
 	if err != nil {
 		panic(err)
 	}
 
 	//rv, err := api.RPC.State.GetRuntimeVersionLatest()
-	rv, err := w.conn.api.RPC.State.GetRuntimeVersionLatest()
+	rv, err := w.msApi.RPC.State.GetRuntimeVersionLatest()
 	if err != nil {
 		panic(err)
 	}
@@ -456,7 +461,7 @@ func (w *writer) simpleTx(m msg.Message) bool {
 
 	var accountInfo types.AccountInfo
 	//ok, err := api.RPC.State.GetStorageLatest(key, &accountInfo)
-	ok, err := w.conn.api.RPC.State.GetStorageLatest(key, &accountInfo)
+	ok, err := w.msApi.RPC.State.GetStorageLatest(key, &accountInfo)
 	if err != nil || !ok {
 		panic(err)
 	}
@@ -482,7 +487,7 @@ func (w *writer) simpleTx(m msg.Message) bool {
 
 	// Do the transfer and track the actual status
 	//sub, err := api.RPC.Author.SubmitAndWatchExtrinsic(ext)
-	sub, err := w.conn.api.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	sub, err := w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
 	if err != nil {
 		panic(err)
 	}

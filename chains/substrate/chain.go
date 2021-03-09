@@ -27,13 +27,12 @@ import (
 	"github.com/ChainSafe/chainbridge-utils/blockstore"
 	"github.com/ChainSafe/chainbridge-utils/core"
 	"github.com/ChainSafe/chainbridge-utils/crypto/sr25519"
-	"github.com/ChainSafe/chainbridge-utils/keystore"
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
-	//"github.com/centrifuge/go-substrate-rpc-client/signature"
-	signatures2 "github.com/centrifuge/go-substrate-rpc-client/v2/signature"
-	//"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+	signature2 "github.com/centrifuge/go-substrate-rpc-client/signature"
+	"github.com/rjmand/go-substrate-rpc-client/v2/signature"
+	"github.com/rjmand/go-substrate-rpc-client/v2/types"
 )
 
 var _ core.Chain = &Chain{}
@@ -62,23 +61,34 @@ func checkBlockstore(bs *blockstore.Blockstore, startBlock uint64) (uint64, erro
 }
 
 func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics) (*Chain, error) {
-	kp, err := keystore.KeypairFromAddress(cfg.From, keystore.SubChain, cfg.KeystorePath, cfg.Insecure)
-	if err != nil {
-		return nil, err
+	//kp, err := keystore.KeypairFromAddress(cfg.From, keystore.SubChain, cfg.KeystorePath, cfg.Insecure)
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	//krp := kp.(*sr25519.Keypair).AsKeyringPair()
+
+	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
+	kr := signature.KeyringPair{
+		URI:       RelayerSeedOrSecret,
+		Address:   RelayerAddress,
+		PublicKey: types.MustHexDecodeString(RelayerPublicKey),
 	}
 
-	krp := kp.(*sr25519.Keypair).AsKeyringPair()
+	var kp = sr25519.NewKeypairFromKRP(signature2.KeyringPair(kr))
 
 	// Attempt to load latest block
 	bs, err := blockstore.NewBlockstore(cfg.BlockstorePath, cfg.Id, kp.Address())
 	if err != nil {
 		return nil, err
 	}
+
 	startBlock := parseStartBlock(cfg)
 
 	stop := make(chan int)
+
 	// Setup connection
-	conn := NewConnection(cfg.Endpoint, cfg.Name, (*signatures2.KeyringPair)(krp), logger, stop, sysErr)
+	conn := NewConnection(cfg.Endpoint, cfg.Name, &kr, logger, stop, sysErr)
 	err = conn.Connect()
 	if err != nil {
 		return nil, err
@@ -97,6 +107,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	// Setup listener & writer
 	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, logger, bs, stop, sysErr, m)
 	w := NewWriter(conn, l, logger, sysErr, m, ue)
+
 	return &Chain{
 		cfg:      cfg,
 		conn:     conn,
