@@ -22,6 +22,12 @@ var MaxWeight = 2269800000
 var OtherRelayerA = "0x0a19674301c56a1721feb98dbe93cfab911a8c1bed127f598ef93b374bcc6e71"
 var OtherRelayerB = "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
 
+var url = "ws://127.0.0.1:9944"
+var AKSM = "0x0000000000000000000000000000000000000000000000000000000000000000"
+var chainSub = 1
+var chainAlaya = 222
+var MultiSignAddress = "0x6927024a61cd5f34bbd483b5715d396febaf559071cdb42c2759cbc25621889c"
+
 func parseStartBlock(cfg *core.ChainConfig) uint64 {
 	if blk, ok := cfg.Opts["startBlock"]; ok {
 		res, err := strconv.ParseUint(blk, 10, 32)

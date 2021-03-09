@@ -50,11 +50,6 @@ type listener struct {
 // Frequency of polling for a new block
 var BlockRetryInterval = time.Second * 5
 //var BlockRetryLimit = 5
-var url = "ws://127.0.0.1:9944"
-var AKSM = "0x0000000000000000000000000000000000000000000000000000000000000000"
-var chainSub = 1
-var chainAlaya = 222
-var MultiSignAddress = "0x6927024a61cd5f34bbd483b5715d396febaf559071cdb42c2759cbc25621889c"
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,
 	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics) *listener {
@@ -119,6 +114,7 @@ func (l *listener) start() error {
 	}()
 	return nil
 }
+var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
 
 // registerEventHandler enables a handler for a given event. This cannot be used after Start is called.
 //func (l *listener) registerEventHandler(name eventName, handler eventHandler) error {
@@ -128,8 +124,6 @@ func (l *listener) start() error {
 //	l.subscriptions[name] = handler
 //	return nil
 //}
-
-var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
 
 // pollBlocks will poll for the latest block and proceed to parse the associated events as it sees new blocks.
 // Polling begins at the block defined in `l.startBlock`. Failed attempts to fetch the latest block or parse
