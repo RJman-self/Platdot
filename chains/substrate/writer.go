@@ -241,7 +241,7 @@ func (w *writer) submitTx(c types.Call) {
 	/// Do the transfer and track the actual status
 	sub, err := w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
 
-	//fmt.Printf("sub is \n", sub)
+
 	/// Watch the Result
 	err = w.watchSubmission(sub)
 	if err != nil {
