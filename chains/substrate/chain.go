@@ -88,13 +88,14 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		return nil, err
 	}
 
-	if cfg.LatestBlock {
-		curr, err := conn.api.RPC.Chain.GetHeaderLatest()
-		if err != nil {
-			return nil, err
-		}
-		startBlock = uint64(curr.Number)
-	}
+	//if cfg.LatestBlock {
+	//	fmt.Printf("start block is newest\n")
+	//	curr, err := conn.api.RPC.Chain.GetHeaderLatest()
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	startBlock = uint64(curr.Number)
+	//}
 
 	ue := parseUseExtended(cfg)
 	otherRelayers := parseOtherRelayer(cfg)

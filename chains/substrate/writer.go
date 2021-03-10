@@ -152,6 +152,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 			for _, ms := range w.listener.msTxAsMulti {
 				/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
 				if ms.Executed {
+					w.log.Info("depositNonce ", m.DepositNonce, " done(Executed)")
 					return true
 				}
 
@@ -178,7 +179,6 @@ func (w *writer) redeemTx(m msg.Message) bool {
 				panic(err)
 			}
 			///END: Create a call of MultiSignTransfer
-
 			///BEGIN: Submit a MultiSignExtrinsic to Polkadot
 			w.submitTx(mc)
 			///END: Submit a MultiSignExtrinsic to Polkadot
