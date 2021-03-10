@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"strconv"
 
-
 	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/rjman-self/go-polkadot-rpc-client/client"
 
@@ -25,12 +24,11 @@ import (
 )
 
 type listener struct {
-	name       string
-	chainId    msg.ChainId
-	startBlock uint64
-	blockStore blockstore.Blockstorer
-	conn       *Connection
-	//subscriptions  map[eventName]eventHandler // Handlers for specific events
+	name           string
+	chainId        msg.ChainId
+	startBlock     uint64
+	blockStore     blockstore.Blockstorer
+	conn           *Connection
 	depositNonce   map[DepositTarget]DepositNonce
 	router         chains.Router
 	log            log15.Logger
@@ -46,8 +44,6 @@ type listener struct {
 
 // Frequency of polling for a new block
 var BlockRetryInterval = time.Second * 5
-
-//var BlockRetryLimit = 5
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,
 	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, multiSignAddress types.AccountID) *listener {
@@ -83,21 +79,6 @@ func (l *listener) setRouter(r chains.Router) {
 
 // start creates the initial subscription for all events
 func (l *listener) start() error {
-	// Check whether latest is less than starting block
-	header, err := l.client.Api.RPC.Chain.GetHeaderLatest()
-	if err != nil {
-		return err
-	}
-	if uint64(header.Number) < l.startBlock {
-		//return fmt.Errorf("starting block (%d) is greater than latest known block (%d)", l.startBlock, header.Number)
-	}
-
-	//for _, sub := range Subscriptions {
-	//	err := l.registerEventHandler(sub.name, sub.handler)
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
 
 	go func() {
 		err := l.pollBlocks()
@@ -109,15 +90,6 @@ func (l *listener) start() error {
 }
 
 var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
-
-// registerEventHandler enables a handler for a given event. This cannot be used after Start is called.
-//func (l *listener) registerEventHandler(name eventName, handler eventHandler) error {
-//	if l.subscriptions[name] != nil {
-//		return fmt.Errorf("event %s already registered", name)
-//	}
-//	l.subscriptions[name] = handler
-//	return nil
-//}
 
 // pollBlocks will poll for the latest block and proceed to parse the associated events as it sees new blocks.
 // Polling begins at the block defined in `l.startBlock`. Failed attempts to fetch the latest block or parse
@@ -134,10 +106,10 @@ func (l *listener) pollBlocks() error {
 			fmt.Printf("Now deal with Block %d\n", currentBlock)
 			l.log.Trace("Now deal with Block ", currentBlock)
 			/// Initialize the metadata
-
 			/// Subscribe to system events via storage
 			fmt.Printf("current block is %v\n", currentBlock)
 			key, err := types.CreateStorageKey(l.client.Meta, "System", "Events", nil, nil)
+
 			if err != nil {
 				panic(err)
 			}
@@ -169,7 +141,6 @@ func (l *listener) pollBlocks() error {
 			}
 
 			hash, err := l.client.Api.RPC.Chain.GetBlockHash(currentBlock)
-
 			if err != nil && err.Error() == ErrBlockNotReady.Error() {
 				time.Sleep(BlockRetryInterval)
 				continue
@@ -193,7 +164,6 @@ func (l *listener) pollBlocks() error {
 					// skip, we are only interested in events with content
 					continue
 				}
-
 				// Decode the event records
 				events := types.EventRecords{}
 				err = types.EventRecordsRaw(change.StorageData).DecodeEventRecords(l.client.Meta, &events)
@@ -364,208 +334,6 @@ func (l *listener) handleEvent(events types.EventRecords, currentBlock uint64, b
 
 	return nil
 }
-
-//func (l *listener) processEvent(hash types.Hash) error {
-//	l.log.Trace("Fetching block for events", "hash", hash.Hex())
-//	meta := l.conn.getMetadata()
-//	// Subscribe to system events via storage
-//	key, err := types.CreateStorageKey(&meta, "System", "Events", nil, nil)
-//	if err != nil {
-//		return err
-//	}
-//
-//	//var records types.EventRecordsRaw
-//	//_, err = l.conn.api.RPC.State.GetStorage(key, &records, hash)
-//	//if err != nil {
-//	//	return err
-//	//}
-//
-//	//f, err := os.OpenFile("watchfile.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
-//	//if err != nil {
-//	//	log.Fatal(err)
-//	//}
-//	////完成后，延迟关闭
-//	////defer f.Close()
-//	//// 设置日志输出到文件
-//	//log.SetOutput(f)
-//
-//	var multiSignPk, errs = types.HexDecodeString("0x96255ecf5f66b58074da258ad20e6d74fedc900798687ff86547efe30ec2e7c6")
-//	if errs != nil {
-//		panic(err)
-//	}
-//	var multiSignAccount = types.NewAccountID(multiSignPk)
-//
-//	sub, err := l.conn.api.RPC.State.SubscribeStorageRaw([]types.StorageKey{key})
-//	if err != nil {
-//		panic(err)
-//	}
-//	defer sub.Unsubscribe()
-//
-//	set := <-sub.Chan()
-//	//log.Println("\t~_~sadsadsadad---------")
-//
-//	for _, chng := range set.Changes {
-//		if !types.Eq(chng.StorageKey, key) || !chng.HasStorageData {
-//			// skip, we are only interested in events with countent
-//			continue
-//		}
-//
-//		// Decode the event records
-//		events := types.EventRecords{}
-//		err = types.EventRecordsRaw(chng.StorageData).DecodeEventRecords(&meta, &events)
-//		if err != nil {
-//			//panic(err)
-//			fmt.Printf("\terr is %v\n", err)
-//		}
-//
-//		// Show what we are busy with
-//		for _, e := range events.Balances_Transfer {
-//			fmt.Printf("\tBalances:Transfer:: (phase=%#v)\n", e.Phase)
-//			fmt.Printf("\t\t%v, %v, %v\n", e.From, e.To, e.Value)
-//			if e.To == multiSignAccount {
-//				fmt.Printf("\t~_~成功捕捉到转账到多签地址的交易---------\n")
-//
-//				// 写入日志内容
-//				//log.Println("\t~_~成功捕捉到转账到多签地址的交易---------")
-//
-//				//	var recipient, err = types.HexDecodeString("0xff93B45308FD417dF303D6515aB04D9e89a750Ca")
-//				//	if err != nil {
-//				//		panic(err)
-//				//	}
-//				//var recipientAccount = types.NewAccountID(recipient)
-//				//
-//
-//				//msg.NewFungibleTransfer(
-//				//	0, // Unset
-//				//	msg.ChainId(evt.Destination),
-//				//	msg.Nonce(evt.DepositNonce),
-//				//	evt.Amount.Int,
-//				//	resourceId,
-//				//	evt.Recipient,
-//				//	)
-//
-//			}
-//		}
-//		for _, e := range events.Balances_Deposit {
-//			fmt.Printf("\tBalances:Deposit:: (phase=%#v)\n", e.Phase)
-//			fmt.Printf("\t\t%v, %v\n", e.Who, e.Balance)
-//		}
-//		for _, e := range events.Grandpa_NewAuthorities {
-//			fmt.Printf("\tGrandpa:NewAuthorities:: (phase=%#v)\n", e.Phase)
-//			fmt.Printf("\t\t%v\n", e.NewAuthorities)
-//		}
-//		for _, e := range events.Grandpa_Paused {
-//			fmt.Printf("\tGrandpa:Paused:: (phase=%#v)\n", e.Phase)
-//		}
-//		for _, e := range events.Grandpa_Resumed {
-//			fmt.Printf("\tGrandpa:Resumed:: (phase=%#v)\n", e.Phase)
-//		}
-//		for _, e := range events.ImOnline_HeartbeatReceived {
-//			fmt.Printf("\tImOnline:HeartbeatReceived:: (phase=%#v)\n", e.Phase)
-//			fmt.Printf("\t\t%#x\n", e.AuthorityID)
-//		}
-//		for _, e := range events.Offences_Offence {
-//			fmt.Printf("\tOffences:Offence:: (phase=%#v)\n", e.Phase)
-//			fmt.Printf("\t\t%v%v\n", e.Kind, e.OpaqueTimeSlot)
-//		}
-//		for _, e := range events.Session_NewSession {
-//			fmt.Printf("\tSession:NewSession:: (phase=%#v)\n", e.Phase)
-//			fmt.Printf("\t\t%v\n", e.SessionIndex)
-//		}
-//		for _, e := range events.Staking_OldSlashingReportDiscarded {
-//			fmt.Printf("\tStaking:OldSlashingReportDiscarded:: (phase=%#v)\n", e.Phase)
-//			fmt.Printf("\t\t%v\n", e.SessionIndex)
-//		}
-//		for _, e := range events.Staking_Slash {
-//			fmt.Printf("\tStaking:Slash:: (phase=%#v)\n", e.Phase)
-//			fmt.Printf("\t\t%#x%v\n", e.AccountID, e.Balance)
-//		}
-//		for _, e := range events.System_ExtrinsicSuccess {
-//			fmt.Printf("\tSystem:ExtrinsicSuccess:: (phase=%#v)\n", e.Phase)
-//		}
-//		for _, e := range events.System_ExtrinsicFailed {
-//			fmt.Printf("\tSystem:ErtrinsicFailed:: (phase=%#v)\n", e.Phase)
-//			fmt.Printf("\t\t%v\n", e.DispatchError)
-//		}
-//		for _, e := range events.Multisig_NewMultisig {
-//			fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
-//			fmt.Printf("\t\tFrom:%v,To: %v\n", e.Who, e.ID)
-//		}
-//		for _, e := range events.Multisig_MultisigApproval {
-//			fmt.Printf("\tSystem:detect new multisign approval:: (phase=%#v)\n", e.Phase)
-//		}
-//		for _, e := range events.Multisig_MultisigExecuted {
-//			fmt.Printf("\tSystem:detect new multisign Executed:: (phase=%#v)\n", e.Phase)
-//			fmt.Printf("\t\tFrom:%v,To: %v\n", e.Who, e.ID)
-//		}
-//		for _, e := range events.Multisig_MultisigCancelled {
-//			fmt.Printf("\tSystem:detect new multisign request:: (phase=%#v)\n", e.Phase)
-//		}
-//	}
-//
-//	//e := types.EventRecords{}
-//	//err = records.DecodeEventRecords(&meta, &e)
-//	l.log.Trace("Finished processing events", "block", hash.Hex())
-//
-//	return nil
-//}
-//
-//// processEvents fetches a block and parses out the events, calling Listener.handleEvents()
-//func (l *listener) processEvents(hash types.Hash) error {
-//	l.log.Trace("Fetching block for events", "hash", hash.Hex())
-//	meta := l.conn.getMetadata()
-//	key, err := types.CreateStorageKey(&meta, "System", "Events", nil, nil)
-//	if err != nil {
-//		return err
-//	}
-//
-//	var records types.EventRecordsRaw
-//	_, err = l.conn.api.RPC.State.GetStorage(key, &records, hash)
-//	if err != nil {
-//		return err
-//	}
-//
-//	e := utils.Events{}
-//	err = records.DecodeEventRecords(&meta, &e)
-//	if err != nil {
-//		return err
-//	}
-//
-//	l.handleEvents(e)
-//	l.log.Trace("Finished processing events", "block", hash.Hex())
-//
-//	return nil
-//}
-//
-//// handleEvents calls the associated handler for all registered event types
-//func (l *listener) handleEvents(evts utils.Events) {
-//	if l.subscriptions[FungibleTransfer] != nil {
-//		for _, evt := range evts.ChainBridge_FungibleTransfer {
-//			l.log.Trace("Handling FungibleTransfer event")
-//			l.submitMessage(l.subscriptions[FungibleTransfer](evt, l.log))
-//		}
-//	}
-//	if l.subscriptions[NonFungibleTransfer] != nil {
-//		for _, evt := range evts.ChainBridge_NonFungibleTransfer {
-//			l.log.Trace("Handling NonFungibleTransfer event")
-//			l.submitMessage(l.subscriptions[NonFungibleTransfer](evt, l.log))
-//		}
-//	}
-//	if l.subscriptions[GenericTransfer] != nil {
-//		for _, evt := range evts.ChainBridge_GenericTransfer {
-//			l.log.Trace("Handling GenericTransfer event")
-//			l.submitMessage(l.subscriptions[GenericTransfer](evt, l.log))
-//		}
-//	}
-//
-//	if len(evts.System_CodeUpdated) > 0 {
-//		l.log.Trace("Received CodeUpdated event")
-//		err := l.conn.updateMetatdata()
-//		if err != nil {
-//			l.log.Error("Unable to update Metadata", "error", err)
-//		}
-//	}
-//}
 
 // submitMessage inserts the chainId into the msg and sends it to the router
 func (l *listener) submitMessage(m msg.Message, err error) {

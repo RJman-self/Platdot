@@ -7,16 +7,10 @@ import (
 	log "github.com/ChainSafe/log15"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	"strconv"
-	"time"
 
 	"github.com/ChainSafe/chainbridge-utils/core"
 )
 
-var MultiSignThreshold = 2
-var RelayerName = "Sss"
-var RelayerRoundTotal = int64(3)
-var RelayerRound = map[string]uint64{"Sss": 0, "Hhh": 2, "Alice": 1}
-var RelayerRoundInterval = time.Second * 2
 var MaxWeight = 2269800000
 
 var url = "ws://127.0.0.1:9944"
@@ -48,29 +42,41 @@ func parseUseExtended(cfg *core.ChainConfig) bool {
 
 func parseOtherRelayer(cfg *core.ChainConfig) []types.AccountID {
 	var otherSignatories []types.AccountID
-	if relayer, ok := cfg.Opts["RelayerA"]; ok {
-		address, _ := types.NewAddressFromHexAccountID(relayer)
-		otherSignatories = append(otherSignatories, address.AsAccountID)
+	if totalRelayer, ok := cfg.Opts["TotalRelayer"]; ok {
+		total, _ := strconv.ParseUint(totalRelayer, 10, 32)
+		for i := uint64(1); i < total; i++ {
+			relayedKey := "OtherRelayer" + string(strconv.Itoa(int(i)))
+			if relayer, ok := cfg.Opts[relayedKey]; ok {
+				address, _ := types.NewAddressFromHexAccountID(relayer)
+				otherSignatories = append(otherSignatories, address.AsAccountID)
+			} else {
+				log.Warn("Please set config 'OtherRelayer' from 1 to ...!")
+				log.Error("Polkadot OtherRelayer Not Found", "OtherRelayerNumber", i)
+			}
+		}
 	} else {
-		log.Error("Polkadot OtherRelayers Not Found")
-	}
-	if relayer, ok := cfg.Opts["RelayerB"]; ok {
-		address, _ := types.NewAddressFromHexAccountID(relayer)
-		otherSignatories = append(otherSignatories, address.AsAccountID)
-	}
-	if relayer, ok := cfg.Opts["RelayerC"]; ok {
-		address, _ := types.NewAddressFromHexAccountID(relayer)
-		otherSignatories = append(otherSignatories, address.AsAccountID)
-	}
-	if relayer, ok := cfg.Opts["RelayerD"]; ok {
-		address, _ := types.NewAddressFromHexAccountID(relayer)
-		otherSignatories = append(otherSignatories, address.AsAccountID)
-	}
-	if relayer, ok := cfg.Opts["RelayerE"]; ok {
-		address, _ := types.NewAddressFromHexAccountID(relayer)
-		otherSignatories = append(otherSignatories, address.AsAccountID)
+		log.Error("Please set config opts 'TotalRelayer'.")
 	}
 	return otherSignatories
+}
+
+func parseMultiSignConfig(cfg *core.ChainConfig) (uint64, uint64, uint16) {
+	total := uint64(3)
+	current := uint64(1)
+	threshold := uint64(2)
+	if totalRelayer, ok := cfg.Opts["TotalRelayer"]; ok {
+		total, _ = strconv.ParseUint(totalRelayer, 10, 32)
+	}
+	if currentRelayerNumber, ok := cfg.Opts["CurrentRelayerNumber"]; ok {
+		current, _ = strconv.ParseUint(currentRelayerNumber, 10, 32)
+		if current == 0 {
+			log.Error("Please set config opts 'CurrentRelayerNumber' from 1 to ...!")
+		}
+	}
+	if multiSignThreshold, ok := cfg.Opts["MultiSignThreshold"]; ok {
+		threshold, _ = strconv.ParseUint(multiSignThreshold, 10, 32)
+	}
+	return total, current, uint16(threshold)
 }
 
 func parseMultiSignAddress(cfg *core.ChainConfig) types.AccountID {

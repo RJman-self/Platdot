@@ -99,9 +99,10 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	ue := parseUseExtended(cfg)
 	otherRelayers := parseOtherRelayer(cfg)
 	multiSignAddress := parseMultiSignAddress(cfg)
+	total, current, threshold := parseMultiSignConfig(cfg)
 	// Setup listener & writer
 	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, logger, bs, stop, sysErr, m, types.AccountID(multiSignAddress))
-	w := NewWriter(conn, l, logger, sysErr, m, ue, (*signature2.KeyringPair)(krp), otherRelayers)
+	w := NewWriter(conn, l, logger, sysErr, m, ue, (*signature2.KeyringPair)(krp), otherRelayers, total, current, threshold)
 
 	return &Chain{
 		cfg:      cfg,
