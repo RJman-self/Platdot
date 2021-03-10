@@ -5,6 +5,7 @@ package substrate
 
 import (
 	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
+	signature2 "github.com/rjmand/go-substrate-rpc-client/v2/signature"
 	"testing"
 
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
@@ -13,7 +14,7 @@ import (
 func TestConnect_QueryStorage(t *testing.T) {
 	// Create connection with Alice key
 	errs := make(chan error)
-	conn := NewConnection(TestEndpoint, "Alice", (*signature.KeyringPair)(AliceKey), AliceTestLogger, make(chan int), errs)
+	conn := NewConnection(TestEndpoint, "Alice", (*signature2.KeyringPair)(AliceKey), AliceTestLogger, make(chan int), errs)
 	err := conn.Connect()
 	if err != nil {
 		t.Fatal(err)

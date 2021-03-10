@@ -11,10 +11,10 @@ import (
 	"github.com/ChainSafe/log15"
 	gsrpc "github.com/rjmand/go-substrate-rpc-client/v2"
 
+	utils "github.com/rjman-self/Platdot/shared/substrate"
 	"github.com/rjmand/go-substrate-rpc-client/v2/rpc/author"
 	"github.com/rjmand/go-substrate-rpc-client/v2/signature"
 	"github.com/rjmand/go-substrate-rpc-client/v2/types"
-	utils "github.com/rjman-self/Platdot/shared/substrate"
 )
 
 type Connection struct {

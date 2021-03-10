@@ -4,6 +4,7 @@
 package substrate
 
 import (
+	log "github.com/ChainSafe/log15"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	"strconv"
 	"time"
@@ -50,6 +51,8 @@ func parseOtherRelayer(cfg *core.ChainConfig) []types.AccountID {
 	if relayer, ok := cfg.Opts["RelayerA"]; ok {
 		address, _ := types.NewAddressFromHexAccountID(relayer)
 		otherSignatories = append(otherSignatories, address.AsAccountID)
+	} else {
+		log.Error("Polkadot OtherRelayers Not Found")
 	}
 	if relayer, ok := cfg.Opts["RelayerB"]; ok {
 		address, _ := types.NewAddressFromHexAccountID(relayer)
@@ -75,6 +78,8 @@ func parseMultiSignAddress(cfg *core.ChainConfig) types.AccountID {
 		multiSignPk, _ := types.HexDecodeString(multisignAddress)
 		multiSignAccount := types.NewAccountID(multiSignPk)
 		return multiSignAccount
+	} else {
+		log.Error("Polkadot MultiAddress Not Found")
 	}
 	return types.AccountID{}
 }

@@ -142,10 +142,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 	fmt.Printf("make a call, ready to send ms\n")
 
 	for {
-		round := big.NewInt(0)
-		round.Mod(w.listener.latestBlock.Height, big.NewInt(RelayerRoundTotal)).Uint64()
-		fmt.Printf("block is %v, round is %v\n", w.listener.latestBlock.Height, round)
-
+		round := w.getRound()
 		switch round.Uint64() {
 		case RelayerRound["Sss"]:
 			fmt.Printf("This Round is %v, Sss to do everything\n", RelayerRound["Sss"])
@@ -260,6 +257,25 @@ func (w *writer) submitTx(c types.Call) {
 	if err != nil {
 		fmt.Printf("subWriter meet err: %v\n", err)
 	}
+}
+
+func (w *writer) getRound() *big.Int {
+	finalizedHash, err := w.listener.conn.api.RPC.Chain.GetFinalizedHead()
+	if err != nil {
+		w.listener.log.Error("Writer Failed to fetch finalized hash", "err", err)
+	}
+
+	// Get finalized block header
+	finalizedHeader, err := w.listener.conn.api.RPC.Chain.GetHeader(finalizedHash)
+	if err != nil {
+		w.listener.log.Error("Failed to fetch finalized header", "err", err)
+	}
+
+	height := big.NewInt(int64(finalizedHeader.Number))
+	round := big.NewInt(0)
+	round.Mod(height, big.NewInt(RelayerRoundTotal)).Uint64()
+	w.log.Info("block is %v, round is %v\n", height.Uint64(), round.Uint64())
+	return round
 }
 
 func (w *writer) watchSubmission(sub *author.ExtrinsicStatusSubscription) error {
