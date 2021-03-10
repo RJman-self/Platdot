@@ -68,13 +68,15 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	fmt.Printf("--------------------------Writer try to make a MultiSignTransfer------------------------------------------\n")
-	var RetryLimit = 10
-	for i := 0; i < RetryLimit; i++ {
-		if w.redeemTx(m) {
-			break
+	go func() {
+		var RetryLimit = 5
+		for i := 0; i < RetryLimit; i++ {
+			if w.redeemTx(m) {
+				break
+			}
 		}
-	}
-	fmt.Printf("--------------------------Writer succeed made a MultiSignTransfer------------------------------------------\n")
+		fmt.Printf("--------------------------Writer succeed made a MultiSignTransfer------------------------------------------\n")
+	}()
 	return true
 }
 
