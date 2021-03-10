@@ -45,10 +45,10 @@ type listener struct {
 
 // Frequency of polling for a new block
 var BlockRetryInterval = time.Second * 5
+
 //var BlockRetryLimit = 5
 
-var MultiSignExtrinsicStatus = []int32{1,2,3}
-
+var MultiSignExtrinsicStatus = []int32{1, 2, 3}
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,
 	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, multiSignAddress types.AccountID) *listener {
@@ -116,8 +116,7 @@ func (l *listener) pollBlocks() error {
 		case <-l.stop:
 			return errors.New("terminated")
 		default:
-			fmt.Printf("Now deal with Block %d\n", currentBlock)
-			l.log.Trace("Now deal with Block ", currentBlock)
+			//fmt.Printf("Now deal with Block %d\n", currentBlock)
 			/// Initialize the metadata
 			/// Subscribe to system events via storage
 			fmt.Printf("current block is %v\n", currentBlock)

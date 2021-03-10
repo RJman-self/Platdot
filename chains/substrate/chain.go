@@ -24,6 +24,7 @@ As the writer receives messages from the router, it constructs proposals. If a p
 package substrate
 
 import (
+	"fmt"
 	"github.com/ChainSafe/chainbridge-utils/blockstore"
 	"github.com/ChainSafe/chainbridge-utils/core"
 	"github.com/ChainSafe/chainbridge-utils/crypto/sr25519"
@@ -88,14 +89,15 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		return nil, err
 	}
 
-	//if cfg.LatestBlock {
-	//	fmt.Printf("start block is newest\n")
-	//	curr, err := conn.api.RPC.Chain.GetHeaderLatest()
-	//	if err != nil {
-	//		return nil, err
-	//	}
-	//	startBlock = uint64(curr.Number)
-	//}
+	fmt.Printf("cfg: %v\n", cfg.LatestBlock)
+	if cfg.LatestBlock {
+		fmt.Printf("start block is newest\n")
+		curr, err := conn.api.RPC.Chain.GetHeaderLatest()
+		if err != nil {
+			return nil, err
+		}
+		startBlock = uint64(curr.Number)
+	}
 
 	ue := parseUseExtended(cfg)
 	otherRelayers := parseOtherRelayer(cfg)
