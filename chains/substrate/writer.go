@@ -24,6 +24,7 @@ import (
 var _ core.Writer = &writer{}
 
 var TerminatedError = errors.New("terminated")
+
 var RoundInterval = time.Second * 2
 
 const Mod = 3

@@ -10,10 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ChainSafe/chainbridge-utils/blockstore"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
-	utils "github.com/rjman-self/Platdot/shared/substrate"
 	subtest "github.com/rjman-self/Platdot/shared/substrate/testing"
 )
 
@@ -28,24 +26,24 @@ func (r *mockRouter) Send(message msg.Message) error {
 	return nil
 }
 
-func newTestListener(client *utils.Client, conn *Connection) (*listener, chan error, *mockRouter, error) {
-	r := &mockRouter{msgs: make(chan msg.Message)}
-
-	startBlock, err := client.LatestBlock()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	errs := make(chan error)
-	l := NewListener(conn, "Alice", 1, startBlock, AliceTestLogger, &blockstore.EmptyStore{}, make(chan int), errs, nil)
-	l.setRouter(r)
-	err = l.start()
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	return l, errs, r, nil
-}
+//func newTestListener(client *utils.Client, conn *Connection) (*listener, chan error, *mockRouter, error) {
+//	r := &mockRouter{msgs: make(chan msg.Message)}
+//
+//	startBlock, err := client.LatestBlock()
+//	if err != nil {
+//		return nil, nil, nil, err
+//	}
+//
+//	errs := make(chan error)
+//	l := NewListener(conn, "Alice", 1, startBlock, AliceTestLogger, &blockstore.EmptyStore{}, make(chan int), errs, nil)
+//	l.setRouter(r)
+//	err = l.start()
+//	if err != nil {
+//		return nil, nil, nil, err
+//	}
+//
+//	return l, errs, r, nil
+//}
 
 func verifyResultingMessage(t *testing.T, r *mockRouter, sysErr chan error, expected msg.Message) {
 	// Verify message

@@ -12,7 +12,6 @@ import (
 
 	"github.com/ChainSafe/chainbridge-utils/blockstore"
 	"github.com/ChainSafe/chainbridge-utils/msg"
-	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/rjman-self/Platdot/bindings/Bridge"
@@ -35,8 +34,8 @@ func createTestListener(t *testing.T, config *Config, contracts *utils.DeployedC
 	newConfig := *config
 	newConfig.bridgeContract = contracts.BridgeAddress
 	newConfig.erc20HandlerContract = contracts.ERC20HandlerAddress
-	newConfig.erc721HandlerContract = contracts.ERC721HandlerAddress
-	newConfig.genericHandlerContract = contracts.GenericHandlerAddress
+	//newConfig.erc721HandlerContract = contracts.ERC721HandlerAddress
+	//newConfig.genericHandlerContract = contracts.GenericHandlerAddress
 
 	conn := newLocalConnection(t, &newConfig)
 	latestBlock, err := conn.LatestBlock()
@@ -169,53 +168,53 @@ func TestListener_Erc20DepositedEvent(t *testing.T) {
 	verifyMessage(t, router, expectedMessage, errs)
 }
 
-func TestListener_Erc721DepositedEvent(t *testing.T) {
-	client := ethtest.NewClient(t, TestEndpoint, AliceKp)
-	contracts := deployTestContracts(t, client, aliceTestConfig.id)
-	errs := make(chan error)
-	l, router := createTestListener(t, aliceTestConfig, contracts, make(chan int), errs)
-
-	// For debugging
-	go ethtest.WatchEvent(client, contracts.BridgeAddress, utils.Deposit)
-
-	tokenId := big.NewInt(99)
-
-	erc721Contract := ethtest.Erc721Deploy(t, client)
-	ethtest.Erc721Mint(t, client, erc721Contract, tokenId, []byte{})
-	ethtest.Erc721Approve(t, client, erc721Contract, contracts.ERC721HandlerAddress, tokenId)
-	log15.Info("Deployed erc721, minted and approved handler", "handler", contracts.ERC721HandlerAddress, "contract", erc721Contract, "tokenId", tokenId.Bytes())
-	ethtest.Erc721AssertOwner(t, client, erc721Contract, tokenId, client.Opts.From)
-	src := msg.ChainId(0)
-	dst := msg.ChainId(1)
-	resourceId := msg.ResourceIdFromSlice(append(common.LeftPadBytes(erc721Contract.Bytes(), 31), uint8(src)))
-	recipient := BobKp.CommonAddress()
-
-	ethtest.RegisterResource(t, client, contracts.BridgeAddress, contracts.ERC721HandlerAddress, resourceId, erc721Contract)
-
-	expectedMessage := msg.NewNonFungibleTransfer(
-		src,
-		dst,
-		1,
-		resourceId,
-		tokenId,
-		recipient.Bytes(),
-		[]byte{},
-	)
-
-	// Create an ERC20 Deposit
-	createErc721Deposit(
-		t,
-		l.bridgeContract,
-		client,
-		resourceId,
-
-		recipient,
-		dst,
-		tokenId,
-	)
-
-	verifyMessage(t, router, expectedMessage, errs)
-}
+//func TestListener_Erc721DepositedEvent(t *testing.T) {
+//	client := ethtest.NewClient(t, TestEndpoint, AliceKp)
+//	contracts := deployTestContracts(t, client, aliceTestConfig.id)
+//	errs := make(chan error)
+//	l, router := createTestListener(t, aliceTestConfig, contracts, make(chan int), errs)
+//
+//	// For debugging
+//	go ethtest.WatchEvent(client, contracts.BridgeAddress, utils.Deposit)
+//
+//	tokenId := big.NewInt(99)
+//
+//	erc721Contract := ethtest.Erc721Deploy(t, client)
+//	ethtest.Erc721Mint(t, client, erc721Contract, tokenId, []byte{})
+//	ethtest.Erc721Approve(t, client, erc721Contract, contracts.ERC721HandlerAddress, tokenId)
+//	log15.Info("Deployed erc721, minted and approved handler", "handler", contracts.ERC721HandlerAddress, "contract", erc721Contract, "tokenId", tokenId.Bytes())
+//	ethtest.Erc721AssertOwner(t, client, erc721Contract, tokenId, client.Opts.From)
+//	src := msg.ChainId(0)
+//	dst := msg.ChainId(1)
+//	resourceId := msg.ResourceIdFromSlice(append(common.LeftPadBytes(erc721Contract.Bytes(), 31), uint8(src)))
+//	recipient := BobKp.CommonAddress()
+//
+//	ethtest.RegisterResource(t, client, contracts.BridgeAddress, contracts.ERC721HandlerAddress, resourceId, erc721Contract)
+//
+//	expectedMessage := msg.NewNonFungibleTransfer(
+//		src,
+//		dst,
+//		1,
+//		resourceId,
+//		tokenId,
+//		recipient.Bytes(),
+//		[]byte{},
+//	)
+//
+//	// Create an ERC20 Deposit
+//	createErc721Deposit(
+//		t,
+//		l.bridgeContract,
+//		client,
+//		resourceId,
+//
+//		recipient,
+//		dst,
+//		tokenId,
+//	)
+//
+//	verifyMessage(t, router, expectedMessage, errs)
+//}
 
 func TestListener_GenericDepositedEvent(t *testing.T) {
 	client := ethtest.NewClient(t, TestEndpoint, AliceKp)
