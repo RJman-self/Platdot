@@ -15,6 +15,7 @@ import (
 	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	"math/big"
+	"strconv"
 	"time"
 
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
@@ -36,7 +37,7 @@ type writer struct {
 	extendCall       bool // Extend extrinsic calls to substrate with ResourceID.Used for backward compatibility with example pallet.
 	kr               signature.KeyringPair
 	otherSignatories []types.AccountID
-	msApi			 *gsrpc.SubstrateAPI
+	msApi            *gsrpc.SubstrateAPI
 }
 
 func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics, extendCall bool, krp *signature.KeyringPair, otherRelayers []types.AccountID) *writer {
@@ -46,15 +47,15 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 	}
 
 	return &writer{
-		conn:       conn,
-		listener:   listener,
-		log:        log,
-		sysErr:     sysErr,
-		metrics:    m,
-		extendCall: extendCall,
-		kr: *krp,
+		conn:             conn,
+		listener:         listener,
+		log:              log,
+		sysErr:           sysErr,
+		metrics:          m,
+		extendCall:       extendCall,
+		kr:               *krp,
 		otherSignatories: otherRelayers,
-		msApi:		api,
+		msApi:            api,
 	}
 }
 
@@ -62,10 +63,9 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 	fmt.Printf("--------------------------Writer try to make a MultiSignTransfer------------------------------------------\n")
 	var RetryLimit = 10
 	for i := 0; i < RetryLimit; i++ {
-		fmt.Printf("---", i ,"---\n")
 		finish := w.redeemTx(m)
 		if finish {
-			fmt.Print(RelayerName, " succeed finish the MultiSignTransfer\n")
+			w.log.Info(RelayerName, " succeed finish the MultiSignTransfer\n")
 			break
 		}
 	}
@@ -96,6 +96,31 @@ func (w *writer) redeemTx(m msg.Message) bool {
 	/// Get recipient of Polkadot
 	recipient, _ := types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
 
+	/// Record the depositNonce
+	depositTarget := DepositTarget{
+		DestAddress: string(m.Payload[1].([]byte)),
+		DestAmount:  strconv.FormatInt(int64(bigAmt.Uint64()), 10),
+	}
+	fmt.Printf("=========deposit Target is {destAddr: %s, destAmount: %s}\n", depositTarget.DestAddress, depositTarget.DestAmount)
+
+	_, exist := w.listener.depositNonce[depositTarget]
+	if !exist {
+		depositNonce := DepositNonce{
+			Nonce:  m.DepositNonce,
+			Status: false,
+		}
+		w.log.Info("New deal emerges, deposit Nonce is {destAddr: %v, destAmount: %v}\n", depositNonce.Nonce, depositNonce.Status)
+		w.listener.depositNonce[depositTarget] = depositNonce
+	} else if w.listener.depositNonce[depositTarget].Nonce != m.DepositNonce {
+		fmt.Printf("Inconsistent with the nonce in the message, doesn't need to processe\n")
+		return true
+	} else if w.listener.depositNonce[depositTarget].Status {
+		fmt.Printf("The message has been solved, skip it\n")
+		return true
+	} else {
+		fmt.Printf("Deposit exist which is %v\n", w.listener.depositNonce[depositTarget])
+	}
+
 	/// Create a transfer_keep_alive call
 	c, err := types.NewCall(
 		meta,
@@ -114,7 +139,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 	// parameters of multiSignature
 	destAddress := string(m.Payload[1].([]byte))
 
-	fmt.Printf("make a call, ready to send ms")
+	fmt.Printf("make a call, ready to send ms\n")
 
 	for {
 		round := big.NewInt(0)
@@ -144,7 +169,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 						Height: value,
 						Index:  types.U32(ms.OriginMsTx.MultiSignTxId),
 					}
-					fmt.Printf("find the match MultiSign Tx, get TimePoint %v", maybeTimePoint)
+					fmt.Printf("find the match MultiSign Tx, get TimePoint %v\n", maybeTimePoint)
 					break
 				} else {
 					maybeTimePoint = []byte{}
@@ -229,7 +254,6 @@ func (w *writer) submitTx(c types.Call) {
 
 	/// Do the transfer and track the actual status
 	sub, err := w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
-
 
 	/// Watch the Result
 	err = w.watchSubmission(sub)
