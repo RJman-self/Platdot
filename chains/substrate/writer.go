@@ -110,11 +110,12 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 	_, exist := w.listener.depositNonce[depositTarget]
 	if !exist {
+		w.log.Trace("This Tx has been created")
 		depositNonce := DepositNonce{
 			Nonce:  m.DepositNonce,
 			Status: false,
 		}
-		w.log.Info("New deal emerges, deposit Nonce is {destAddr: %v, destAmount: %v}\n", depositNonce.Nonce, depositNonce.Status)
+		fmt.Printf("New deal emerges, deposit Nonce is {destAddr: %v, destAmount: %v}\n", depositNonce.Nonce, depositNonce.Status)
 		w.listener.depositNonce[depositTarget] = depositNonce
 	} else if w.listener.depositNonce[depositTarget].Nonce != m.DepositNonce {
 		fmt.Printf("Inconsistent with the nonce in the message, doesn't need to processe\n")
@@ -157,13 +158,12 @@ func (w *writer) redeemTx(m msg.Message) bool {
 			/// Match the correct TimePoint
 			for _, ms := range w.listener.msTxAsMulti {
 				/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
-				if ms.Executed {
-					w.log.Info("depositNonce ", m.DepositNonce, " done(Executed)")
-					return true
-				}
-
 				/// Validate parameter
 				if ms.DestAddress == destAddress[2:] && ms.DestAmount == bigAmt.String() {
+					if ms.Executed {
+						fmt.Printf("depositNonce %v done(Executed)", m.DepositNonce)
+						return true
+					}
 					height := types.U32(ms.OriginMsTx.BlockNumber)
 					value := types.NewOptionU32(height)
 					maybeTimePoint = TimePointSafe32{
@@ -247,10 +247,10 @@ func (w *writer) submitTx(c types.Call) {
 	}
 
 	/// Do the transfer and track the actual status
-	sub, err := w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	_, err = w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
 
 	/// Watch the Result
-	err = w.watchSubmission(sub)
+	//err = w.watchSubmission(sub)
 	if err != nil {
 		fmt.Printf("subWriter meet err: %v\n", err)
 	}
@@ -271,7 +271,7 @@ func (w *writer) getRound() *big.Int {
 	height := big.NewInt(int64(finalizedHeader.Number))
 	round := big.NewInt(0)
 	round.Mod(height, big.NewInt(int64(w.totalRelayers*Mod))).Uint64()
-	w.log.Info("block is ", height.Uint64(), ", round is ", round.Uint64())
+	//w.log.Info("block is ", height.Uint64(), ", round is ", round.Uint64())
 	return round
 }
 

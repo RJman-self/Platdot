@@ -119,7 +119,7 @@ func (l *listener) pollBlocks() error {
 			//fmt.Printf("Now deal with Block %d\n", currentBlock)
 			/// Initialize the metadata
 			/// Subscribe to system events via storage
-			fmt.Printf("current block is %v\n", currentBlock)
+			//fmt.Printf("current block is %v\n", currentBlock)
 
 			/// Get finalized block hash
 			finalizedHash, err := l.client.Api.RPC.Chain.GetFinalizedHead()
