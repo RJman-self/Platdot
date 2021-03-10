@@ -24,6 +24,8 @@ var _ core.Writer = &writer{}
 
 var TerminatedError = errors.New("terminated")
 
+const Mod = 3
+
 type writer struct {
 	conn               *Connection
 	listener           *listener
@@ -143,7 +145,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 	for {
 		round := w.getRound()
-		if round.Uint64() == (w.currentRelayer*2 - 1) {
+		if round.Uint64() == (w.currentRelayer*Mod - 1) {
 			/// Try to find a exist MultiSignTx
 			var maybeTimePoint interface{}
 			maxWeight := types.Weight(MaxWeight)
@@ -264,7 +266,7 @@ func (w *writer) getRound() *big.Int {
 
 	height := big.NewInt(int64(finalizedHeader.Number))
 	round := big.NewInt(0)
-	round.Mod(height, big.NewInt(int64(w.totalRelayers*2))).Uint64()
+	round.Mod(height, big.NewInt(int64(w.totalRelayers*Mod))).Uint64()
 	w.log.Info("block is %v, round is %v\n", height.Uint64(), round.Uint64())
 	return round
 }
