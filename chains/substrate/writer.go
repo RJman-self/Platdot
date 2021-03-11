@@ -73,12 +73,14 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	fmt.Printf("--------------------------Writer try to make a MultiSignTransfer------------------------------------------\n")
+	fmt.Printf("msg.DepositNonce is %v\n", m.DepositNonce)
 	go func() {
 		var RetryLimit = 5
 		for i := 0; i < RetryLimit; i++ {
 			if w.redeemTx(m) {
 				break
 			}
+			time.Sleep(time.Second * 2)
 		}
 		fmt.Printf("--------------------------Writer succeed made a MultiSignTransfer------------------------------------------\n")
 	}()
@@ -122,7 +124,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 			Nonce:  m.DepositNonce,
 			Status: false,
 		}
-		fmt.Printf("New deal emerges, deposit Nonce is {destAddr: %v, destAmount: %v}\n", depositNonce.Nonce, depositNonce.Status)
+		fmt.Printf(":::::::::::::::::New deal emerges, deposit Nonce is {destNonce: %v, destStatus: %v}\n", depositNonce.Nonce, depositNonce.Status)
 		w.listener.depositNonce[depositTarget] = depositNonce
 	} else if w.listener.depositNonce[depositTarget].Nonce != m.DepositNonce {
 		fmt.Printf("Inconsistent with the nonce in the message, doesn't need to processe\n")

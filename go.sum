@@ -608,8 +608,12 @@ github.com/regen-network/protobuf v1.3.3-alpha.regen.1/go.mod h1:2DjTFR1HhMQhiWC
 github.com/retailnext/hllpp v1.0.1-0.20180308014038-101a6d2f8b52/go.mod h1:RDpi1RftBQPUCDRw6SmxeaREsAaRKnOclghuzp/WRzc=
 github.com/rjeczalik/notify v0.9.1 h1:CLCKso/QK1snAlnhNR/CNvNiFU2saUtjV0bx3EwNeCE=
 github.com/rjeczalik/notify v0.9.1/go.mod h1:rKwnCoCGeuQnwBtTSPL9Dad03Vh2n40ePRrjvIXnJho=
-github.com/rjman-self/go-polkadot-rpc-client v1.3.0 h1:CiELUSfHQEVohOD48AFv9cbwnF613og5xijCF7T4Ses=
-github.com/rjman-self/go-polkadot-rpc-client v1.3.0/go.mod h1:kUiT/mKh2V1euE14sF3zCthwDfmGa7h7Mnz8FGgaMJY=
+github.com/rjman-self/go-polkadot-rpc-client v1.4.0 h1:8oQFivbh8fcngTsK80b/T6ao64eZBYd5jNAN2pcpngw=
+github.com/rjman-self/go-polkadot-rpc-client v1.4.0/go.mod h1:kUiT/mKh2V1euE14sF3zCthwDfmGa7h7Mnz8FGgaMJY=
+github.com/rjman-self/go-polkadot-rpc-client v1.4.1 h1:FLJ0uNN7ONQ2akA3npbLGUarfj7dTjq0g0aME9IYqek=
+github.com/rjman-self/go-polkadot-rpc-client v1.4.1/go.mod h1:kUiT/mKh2V1euE14sF3zCthwDfmGa7h7Mnz8FGgaMJY=
+github.com/rjman-self/go-polkadot-rpc-client v1.4.2 h1:ehO4UGxv2Urebzu1qovYmKOU/QZA3L6j236htqw6gxo=
+github.com/rjman-self/go-polkadot-rpc-client v1.4.2/go.mod h1:kUiT/mKh2V1euE14sF3zCthwDfmGa7h7Mnz8FGgaMJY=
 github.com/rjmand/go-substrate-rpc-client/v2 v2.4.0 h1:Qw0UKycICMtX49Hyzejk4Dtq4v9kO2ZuDKTWsz+tW4Y=
 github.com/rjmand/go-substrate-rpc-client/v2 v2.4.0/go.mod h1:WFbPfrrU/pDYLUfNBEPFlkeYVQ4+/8au8UKt6WshiyI=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=

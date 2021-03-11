@@ -6,7 +6,7 @@ package substrate
 import (
 	"errors"
 	"fmt"
-	"github.com/rjman-self/go-polkadot-rpc-client/models"
+	"github.com/rjman-self/go-polkadot-rpc-client/expand/polkadot"
 	"strconv"
 
 	"github.com/rjman-self/go-polkadot-rpc-client/client"
@@ -187,65 +187,63 @@ func (l *listener) processBlock(hash types.Hash) error {
 
 	for i, extrinsic := range resp.Extrinsic {
 		var msTxAsMulti = MultiSigAsMulti{}
-		if extrinsic.Type == "as_multi" {
-			MsTxType := checkMultiSignExtrinsicStatus(extrinsic)
-			switch MsTxType {
-			case MultiSignExtrinsicStatus[0]:
-				l.log.Info("find a MultiSign New extrinsic in block #", currentBlock, "#")
-				///MultiSign New
-				l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(extrinsic.ExtrinsicIndex)
-				l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
-				msTxAsMulti.Executed = false
-				msTxAsMulti.Threshold = extrinsic.MultiSigAsMulti.Threshold
-				msTxAsMulti.OtherSignatories = extrinsic.MultiSigAsMulti.OtherSignatories
-				msTxAsMulti.MaybeTimePoint = extrinsic.MultiSigAsMulti.MaybeTimePoint
-				msTxAsMulti.DestAddress = extrinsic.MultiSigAsMulti.DestAddress
-				msTxAsMulti.DestAmount = extrinsic.MultiSigAsMulti.DestAmount
-				msTxAsMulti.StoreCall = extrinsic.MultiSigAsMulti.StoreCall
-				msTxAsMulti.MaxWeight = extrinsic.MultiSigAsMulti.MaxWeight
-				msTxAsMulti.OriginMsTx = l.msTxStatistics.CurrentTx
-				l.msTxAsMulti[l.msTxStatistics.CurrentTx] = msTxAsMulti
-				l.msTxStatistics.TotalCount++
-			case MultiSignExtrinsicStatus[1]:
-				l.log.Info("find a MultiSign Approve extrinsic in block #", currentBlock, "#")
-				///MultiSign Approve
-			case MultiSignExtrinsicStatus[2]:
-				l.log.Info("find a MultiSign Executed extrinsic in block #", currentBlock, "#")
-				/////MultiSign Executed
-				l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(extrinsic.ExtrinsicIndex)
-				l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
-				msTxAsMulti.Executed = false
-				msTxAsMulti.Threshold = extrinsic.MultiSigAsMulti.Threshold
-				msTxAsMulti.OtherSignatories = extrinsic.MultiSigAsMulti.OtherSignatories
-				msTxAsMulti.MaybeTimePoint = extrinsic.MultiSigAsMulti.MaybeTimePoint
-				msTxAsMulti.DestAddress = extrinsic.MultiSigAsMulti.DestAddress
-				msTxAsMulti.DestAmount = extrinsic.MultiSigAsMulti.DestAmount
-				msTxAsMulti.StoreCall = extrinsic.MultiSigAsMulti.StoreCall
-				msTxAsMulti.MaxWeight = extrinsic.MultiSigAsMulti.MaxWeight
-				//msTxAsMulti.OriginMsTx = l.msTxStatistics.CurrentTx
-				///Find An existing multi-signed transaction in the record, and marks for executed status
-				for k, ms := range l.msTxAsMulti {
-					if !ms.Executed && ms.DestAddress == msTxAsMulti.DestAddress && ms.DestAmount == ms.DestAmount {
-						exeMsTx := l.msTxAsMulti[k]
-						exeMsTx.Executed = true
-
-						depositTarget := DepositTarget{
-							DestAddress: ms.DestAddress,
-							DestAmount:  ms.DestAmount,
-						}
-						fmt.Printf("Executed: deposit Target is {destAddr: %s, destAmount: %s}\n", depositTarget.DestAddress, depositTarget.DestAmount)
-						depositNonce := l.depositNonce[depositTarget]
-						depositNonce.Status = true
-						fmt.Printf("extrinsic of depositNonce %d has been executed\n", depositNonce.Nonce)
-						l.depositNonce[depositTarget] = depositNonce
-						l.msTxAsMulti[k] = exeMsTx
-					}
-				}
-				//delete(l.msTxAsMulti, l.msTxStatistics.CurrentTx)
-				l.msTxStatistics.TotalCount++
-			}
+		if extrinsic.Type == polkadot.AsMultiNew {
+			l.log.Info("find a MultiSign New extrinsic in block #", currentBlock, "#")
+			///MultiSign New
+			l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(extrinsic.ExtrinsicIndex)
+			l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
+			msTxAsMulti.Executed = false
+			msTxAsMulti.Threshold = extrinsic.MultiSigAsMulti.Threshold
+			msTxAsMulti.OtherSignatories = extrinsic.MultiSigAsMulti.OtherSignatories
+			msTxAsMulti.MaybeTimePoint = extrinsic.MultiSigAsMulti.MaybeTimePoint
+			msTxAsMulti.DestAddress = extrinsic.MultiSigAsMulti.DestAddress
+			msTxAsMulti.DestAmount = extrinsic.MultiSigAsMulti.DestAmount
+			msTxAsMulti.StoreCall = extrinsic.MultiSigAsMulti.StoreCall
+			msTxAsMulti.MaxWeight = extrinsic.MultiSigAsMulti.MaxWeight
+			msTxAsMulti.OriginMsTx = l.msTxStatistics.CurrentTx
+			l.msTxAsMulti[l.msTxStatistics.CurrentTx] = msTxAsMulti
+			l.msTxStatistics.TotalCount++
 		}
-		if extrinsic.Type == "multiSignBatch" {
+		if extrinsic.Type == polkadot.AsMultiApprove {
+			l.log.Info("find a MultiSign Approve extrinsic in block #", currentBlock, "#")
+			///MultiSign Approve
+		}
+		if extrinsic.Type == polkadot.AsMultiExecuted {
+			l.log.Info("find a MultiSign Executed extrinsic in block #", currentBlock, "#")
+			/////MultiSign Executed
+			l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(extrinsic.ExtrinsicIndex)
+			l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
+			msTxAsMulti.Executed = false
+			msTxAsMulti.Threshold = extrinsic.MultiSigAsMulti.Threshold
+			msTxAsMulti.OtherSignatories = extrinsic.MultiSigAsMulti.OtherSignatories
+			msTxAsMulti.MaybeTimePoint = extrinsic.MultiSigAsMulti.MaybeTimePoint
+			msTxAsMulti.DestAddress = extrinsic.MultiSigAsMulti.DestAddress
+			msTxAsMulti.DestAmount = extrinsic.MultiSigAsMulti.DestAmount
+			msTxAsMulti.StoreCall = extrinsic.MultiSigAsMulti.StoreCall
+			msTxAsMulti.MaxWeight = extrinsic.MultiSigAsMulti.MaxWeight
+			//msTxAsMulti.OriginMsTx = l.msTxStatistics.CurrentTx
+			///Find An existing multi-signed transaction in the record, and marks for executed status
+			for k, ms := range l.msTxAsMulti {
+				if !ms.Executed && ms.DestAddress == msTxAsMulti.DestAddress && ms.DestAmount == ms.DestAmount {
+					exeMsTx := l.msTxAsMulti[k]
+					exeMsTx.Executed = true
+
+					depositTarget := DepositTarget{
+						DestAddress: ms.DestAddress,
+						DestAmount:  ms.DestAmount,
+					}
+					fmt.Printf("Executed: deposit Target is {destAddr: %s, destAmount: %s}\n", depositTarget.DestAddress, depositTarget.DestAmount)
+					depositNonce := l.depositNonce[depositTarget]
+					depositNonce.Status = true
+					fmt.Printf("extrinsic of depositNonce %d has been executed\n", depositNonce.Nonce)
+					l.depositNonce[depositTarget] = depositNonce
+					l.msTxAsMulti[k] = exeMsTx
+				}
+			}
+			//delete(l.msTxAsMulti, l.msTxStatistics.CurrentTx)
+			l.msTxStatistics.TotalCount++
+		}
+		if extrinsic.Type == polkadot.UtilityBatch {
 			fmt.Printf("find a MultiSign Batch extrinsic in block %v\n", currentBlock)
 			/// 1. derive Extrinsic of Block
 			/// 2. validate and get essential parameters of message
@@ -280,25 +278,6 @@ func (l *listener) processBlock(hash types.Hash) error {
 		}
 	}
 	return nil
-}
-
-func checkMultiSignExtrinsicStatus(extrinsic *models.ExtrinsicResponse) int32 {
-	if extrinsic.Type == "as_multi" {
-		if extrinsic.Status == "success" {
-			///MultiSignTx Executed
-			return MultiSignExtrinsicStatus[2]
-		} else if extrinsic.MultiSigAsMulti.MaybeTimePoint.Index == 0 {
-			///MultiSignTx New
-			return MultiSignExtrinsicStatus[0]
-		} else {
-			///MultiSignTx Approve
-			return MultiSignExtrinsicStatus[1]
-		}
-	} else if extrinsic.Type == "cancel_as_multi" {
-		///MultiSignTx Cancel
-		fmt.Printf("cancel_as_multi, nothing to do with it")
-	}
-	return 0
 }
 
 // submitMessage inserts the chainId into the msg and sends it to the router
