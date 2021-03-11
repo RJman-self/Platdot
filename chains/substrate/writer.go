@@ -174,6 +174,18 @@ func (w *writer) redeemTx(m msg.Message) bool {
 						fmt.Printf("depositNonce %v done(Executed)", m.DepositNonce)
 						return true
 					}
+
+					var isExecuted = false
+
+					for _, relayer := range w.otherSignatories {
+						if relayer == types.NewAccountID(w.kr.PublicKey) {
+							isExecuted = true
+						}
+					}
+
+					if isExecuted {
+						return true
+					}
 					height := types.U32(ms.OriginMsTx.BlockNumber)
 					value := types.NewOptionU32(height)
 					maybeTimePoint = TimePointSafe32{
@@ -181,25 +193,19 @@ func (w *writer) redeemTx(m msg.Message) bool {
 						Index:  types.U32(ms.OriginMsTx.MultiSignTxId),
 					}
 					fmt.Printf("find the match MultiSign Tx, get TimePoint %v\n", maybeTimePoint)
-					break
 				} else {
 					maybeTimePoint = []byte{}
 				}
 			}
-			if len(w.listener.msTxAsMulti) == 0 {
-				maybeTimePoint = []byte{}
-			}
-
 			mc, err := types.NewCall(meta, mulMethod, threshold, w.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
 			if err != nil {
 				panic(err)
 			}
 			///END: Create a call of MultiSignTransfer
+
 			///BEGIN: Submit a MultiSignExtrinsic to Polkadot
 			w.submitTx(mc)
 			///END: Submit a MultiSignExtrinsic to Polkadot
-
-			return false
 		}
 	}
 }
@@ -257,10 +263,10 @@ func (w *writer) submitTx(c types.Call) {
 	}
 
 	/// Do the transfer and track the actual status
-	sub, err := w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	_, err = w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
 
 	/// Watch the Result
-	err = w.watchSubmission(sub)
+	//err = w.watchSubmission(sub)
 	if err != nil {
 		fmt.Printf("subWriter meet err: %v\n", err)
 	}
