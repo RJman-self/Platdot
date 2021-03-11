@@ -200,17 +200,17 @@ func (l *listener) processBlock(hash types.Hash) error {
 			msTx.MaxWeight = e.MultiSigAsMulti.MaxWeight
 			msTx.OriginMsTx = l.msTxStatistics.CurrentTx
 
-			depositTarget := DepositTarget{
-				DestAddress: e.MultiSigAsMulti.DestAddress,
-				DestAmount:  e.MultiSigAsMulti.DestAmount,
-			}
-			for _, nc := range l.depositNonce[depositTarget] {
-				if nc.OriginMsTx.BlockNumber == 0 {
-					msTx.DepositNonce = nc.Nonce
-					nc.OriginMsTx.BlockNumber = l.msTxStatistics.CurrentTx.BlockNumber
-					nc.OriginMsTx.MultiSignTxId = l.msTxStatistics.CurrentTx.MultiSignTxId
-				}
-			}
+			//depositTarget := DepositTarget{
+			//	DestAddress: e.MultiSigAsMulti.DestAddress,
+			//	DestAmount:  e.MultiSigAsMulti.DestAmount,
+			//}
+			//for _, nc := range l.depositNonce[depositTarget] {
+			//	if nc.OriginMsTx.BlockNumber == 0 {
+			//		msTx.DepositNonce = nc.Nonce
+			//		nc.OriginMsTx.BlockNumber = l.msTxStatistics.CurrentTx.BlockNumber
+			//		nc.OriginMsTx.MultiSignTxId = l.msTxStatistics.CurrentTx.MultiSignTxId
+			//	}
+			//}
 			l.msTxAsMulti[l.msTxStatistics.CurrentTx] = msTx
 			l.msTxStatistics.TotalCount++
 		}
@@ -237,20 +237,19 @@ func (l *listener) processBlock(hash types.Hash) error {
 				if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == ms.DestAmount {
 					exeMsTx := l.msTxAsMulti[k]
 					exeMsTx.Executed = true
-
-					depositTarget := DepositTarget{
-						DestAddress: ms.DestAddress,
-						DestAmount:  ms.DestAmount,
-					}
-					fmt.Printf("Executed: deposit Target is {destAddr: %s, destAmount: %s}\n", depositTarget.DestAddress, depositTarget.DestAmount)
-					var nonceIndex int
-					for i, dn := range l.depositNonce[depositTarget] {
-						if !dn.Status {
-							dn.Status = true
-							nonceIndex = i
-						}
-					}
-					fmt.Printf("extrinsic of depositNonce %d has been executed\n", l.depositNonce[depositTarget][nonceIndex])
+					//depositTarget := DepositTarget{
+					//	DestAddress: ms.DestAddress,
+					//	DestAmount:  ms.DestAmount,
+					//}
+					//fmt.Printf("Executed: deposit Target is {destAddr: %s, destAmount: %s}\n", depositTarget.DestAddress, depositTarget.DestAmount)
+					//var nonceIndex int
+					//for i, dn := range l.depositNonce[depositTarget] {
+					//	if !dn.Status {
+					//		dn.Status = true
+					//		nonceIndex = i
+					//	}
+					//}
+					//fmt.Printf("extrinsic of depositNonce %d has been executed\n", l.depositNonce[depositTarget][nonceIndex])
 				}
 			}
 			//delete(l.msTxAsMulti, l.msTxStatistics.CurrentTx)

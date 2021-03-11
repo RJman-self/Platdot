@@ -17,7 +17,6 @@ import (
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	utils "github.com/rjman-self/Platdot/shared/substrate"
 	"math/big"
-	"strconv"
 	"time"
 )
 
@@ -29,7 +28,7 @@ var RoundInterval = time.Second * 1
 
 const oneToken = 1000000
 
-const Mod = 2
+const Mod = 1
 
 type writer struct {
 	conn               *Connection
@@ -112,34 +111,34 @@ func (w *writer) redeemTx(m msg.Message) bool {
 	recipient, _ := types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
 
 	/// Record the depositNonce
-	depositTarget := DepositTarget{
-		DestAddress: string(m.Payload[1].([]byte)),
-		DestAmount:  strconv.FormatInt(int64(bigAmt.Uint64()), 10),
-	}
-	fmt.Printf("=========deposit Target is {destAddr: %s, destAmount: %s}\n", depositTarget.DestAddress, depositTarget.DestAmount)
-
-	nonceIndex := w.listener.getDepositNonceIndex(depositTarget, m.DepositNonce)
-	fmt.Printf("nonceIndex is %v\n", nonceIndex)
-	if nonceIndex < 0 {
-		depositNonce := DepositNonce{
-			Nonce: m.DepositNonce,
-			OriginMsTx: MultiSignTx{
-				BlockNumber:   0,
-				MultiSignTxId: 0,
-			},
-			Status: false,
-		}
-		fmt.Printf(":::::::::::::::::New deal emerges, deposit Nonce is {destNonce: %v, destStatus: %v}\n", depositNonce.Nonce, depositNonce.Status)
-		w.listener.depositNonce[depositTarget] = append(w.listener.depositNonce[depositTarget], depositNonce)
-	} else if w.listener.depositNonce[depositTarget][nonceIndex].Nonce != m.DepositNonce {
-		fmt.Printf("Inconsistent with the nonce in the message, doesn't need to processe\n")
-		return true
-	} else if w.listener.depositNonce[depositTarget][nonceIndex].Status {
-		fmt.Printf("The message has been solved, skip it\n")
-		return true
-	} else {
-		fmt.Printf("Deposit exist which is %v\n", w.listener.depositNonce[depositTarget][nonceIndex])
-	}
+	//depositTarget := DepositTarget{
+	//	DestAddress: string(m.Payload[1].([]byte)),
+	//	DestAmount:  strconv.FormatInt(int64(bigAmt.Uint64()), 10),
+	//}
+	//fmt.Printf("=========deposit Target is {destAddr: %s, destAmount: %s}\n", depositTarget.DestAddress, depositTarget.DestAmount)
+	//
+	//nonceIndex := w.listener.getDepositNonceIndex(depositTarget, m.DepositNonce)
+	//fmt.Printf("nonceIndex is %v\n", nonceIndex)
+	//if nonceIndex < 0 {
+	//	depositNonce := DepositNonce{
+	//		Nonce: m.DepositNonce,
+	//		OriginMsTx: MultiSignTx{
+	//			BlockNumber:   0,
+	//			MultiSignTxId: 0,
+	//		},
+	//		Status: false,
+	//	}
+	//	fmt.Printf(":::::::::::::::::New deal emerges, deposit Nonce is {destNonce: %v, destStatus: %v}\n", depositNonce.Nonce, depositNonce.Status)
+	//	w.listener.depositNonce[depositTarget] = append(w.listener.depositNonce[depositTarget], depositNonce)
+	//} else if w.listener.depositNonce[depositTarget][nonceIndex].Nonce != m.DepositNonce {
+	//	fmt.Printf("Inconsistent with the nonce in the message, doesn't need to processe\n")
+	//	return true
+	//} else if w.listener.depositNonce[depositTarget][nonceIndex].Status {
+	//	fmt.Printf("The message has been solved, skip it\n")
+	//	return true
+	//} else {
+	//	fmt.Printf("Deposit exist which is %v\n", w.listener.depositNonce[depositTarget][nonceIndex])
+	//}
 
 	/// Create a transfer_keep_alive call
 	c, err := types.NewCall(
@@ -206,6 +205,9 @@ func (w *writer) redeemTx(m msg.Message) bool {
 				if isVote {
 					return true
 				}
+			}
+			if len(w.listener.msTxAsMulti) == 0 {
+				maybeTimePoint = []byte{}
 			}
 			mc, err := types.NewCall(meta, mulMethod, threshold, w.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
 			if err != nil {
