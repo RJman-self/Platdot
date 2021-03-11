@@ -42,9 +42,13 @@ type writer struct {
 	totalRelayers      uint64
 	currentRelayer     uint64
 	multisignThreshold uint16
+	maxweight          uint64
 }
 
-func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics, extendCall bool, krp *signature.KeyringPair, otherRelayers []types.AccountID, total uint64, current uint64, threshold uint16) *writer {
+func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error,
+	m *metrics.ChainMetrics, extendCall bool, krp *signature.KeyringPair, otherRelayers []types.AccountID,
+	total uint64, current uint64, threshold uint16, weight uint64) *writer {
+
 	api, err := gsrpc.NewSubstrateAPI(config.Default().RPCURL)
 	if err != nil {
 		panic(err)
@@ -63,6 +67,7 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 		totalRelayers:      total,
 		currentRelayer:     current,
 		multisignThreshold: threshold,
+		maxweight:          weight,
 	}
 }
 
@@ -155,7 +160,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 		if round.Uint64() == (w.currentRelayer*Mod - 1) {
 			/// Try to find a exist MultiSignTx
 			var maybeTimePoint interface{}
-			maxWeight := types.Weight(MaxWeight)
+			maxWeight := types.Weight(w.maxweight)
 
 			/// Match the correct TimePoint
 			for _, ms := range w.listener.msTxAsMulti {

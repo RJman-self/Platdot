@@ -4,19 +4,14 @@
 package substrate
 
 import (
+	"github.com/ChainSafe/chainbridge-utils/msg"
 	log "github.com/ChainSafe/log15"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+	"github.com/ethereum/go-ethereum/common"
 	"strconv"
 
 	"github.com/ChainSafe/chainbridge-utils/core"
 )
-
-var MaxWeight = 2269800000
-
-var url = "ws://127.0.0.1:9944"
-var AKSM = "0x0000000000000000000000000000000000000000000000000000000000000000"
-var chainSub = 1
-var chainAlaya = 222
 
 func parseStartBlock(cfg *core.ChainConfig) uint64 {
 	if blk, ok := cfg.Opts["startBlock"]; ok {
@@ -88,4 +83,37 @@ func parseMultiSignAddress(cfg *core.ChainConfig) types.AccountID {
 		log.Error("Polkadot MultiAddress Not Found")
 	}
 	return types.AccountID{}
+}
+
+func parseUrl(cfg *core.ChainConfig) string {
+	if len(cfg.Endpoint) > 0 {
+		return cfg.Endpoint
+	}
+	return ""
+}
+
+func parseMaxWeight(cfg *core.ChainConfig) uint64 {
+	if weight, ok := cfg.Opts["MaxWeight"]; ok {
+		res, _ := strconv.ParseUint(weight, 10, 32)
+		return res
+	}
+	return 2269800000
+}
+
+func parseDestId(cfg *core.ChainConfig) msg.ChainId {
+	if id, ok := cfg.Opts["DestId"]; ok {
+		res, err := strconv.ParseUint(id, 10, 32)
+		if err != nil {
+			panic(err)
+		}
+		return msg.ChainId(res)
+	}
+	return 0
+}
+
+func parseResourceId(cfg *core.ChainConfig) msg.ResourceId {
+	if resource, ok := cfg.Opts["ResourceId"]; ok {
+		return msg.ResourceIdFromSlice(common.FromHex(resource))
+	}
+	return msg.ResourceIdFromSlice(common.FromHex("0x0000000000000000000000000000000000000000000000000000000000000000"))
 }

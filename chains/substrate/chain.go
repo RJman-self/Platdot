@@ -32,7 +32,9 @@ import (
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
+	"github.com/JFJun/go-substrate-crypto/ss58"
 	signature2 "github.com/centrifuge/go-substrate-rpc-client/v2/signature"
+	"github.com/rjman-self/go-polkadot-rpc-client/client"
 	"github.com/rjmand/go-substrate-rpc-client/v2/signature"
 	"github.com/rjmand/go-substrate-rpc-client/v2/types"
 )
@@ -98,13 +100,25 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		startBlock = uint64(curr.Number)
 	}
 
+	// load listener and writer needed config
 	ue := parseUseExtended(cfg)
 	otherRelayers := parseOtherRelayer(cfg)
 	multiSignAddress := parseMultiSignAddress(cfg)
 	total, current, threshold := parseMultiSignConfig(cfg)
+	weight := parseMaxWeight(cfg)
+	url := parseUrl(cfg)
+	dest := parseDestId(cfg)
+	resource := parseResourceId(cfg)
+
+	cli, err := client.New(url)
+	if err != nil {
+		panic(err)
+	}
+	cli.SetPrefix(ss58.PolkadotPrefix)
+
 	// Setup listener & writer
-	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, logger, bs, stop, sysErr, m, types.AccountID(multiSignAddress))
-	w := NewWriter(conn, l, logger, sysErr, m, ue, (*signature2.KeyringPair)(krp), otherRelayers, total, current, threshold)
+	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, logger, bs, stop, sysErr, m, types.AccountID(multiSignAddress), cli, resource, dest)
+	w := NewWriter(conn, l, logger, sysErr, m, ue, (*signature2.KeyringPair)(krp), otherRelayers, total, current, threshold, weight)
 
 	return &Chain{
 		cfg:      cfg,

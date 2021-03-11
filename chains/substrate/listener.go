@@ -6,11 +6,9 @@ package substrate
 import (
 	"errors"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/rjman-self/go-polkadot-rpc-client/models"
 	"strconv"
 
-	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/rjman-self/go-polkadot-rpc-client/client"
 
 	"github.com/rjmand/go-substrate-rpc-client/v2/types"
@@ -41,6 +39,8 @@ type listener struct {
 	multiSignAddr  types.AccountID
 	msTxStatistics MultiSignTxStatistics
 	msTxAsMulti    map[MultiSignTx]MultiSigAsMulti
+	resourceId     msg.ResourceId
+	destId         msg.ChainId
 }
 
 // Frequency of polling for a new block
@@ -51,14 +51,8 @@ var BlockRetryInterval = time.Second * 5
 var MultiSignExtrinsicStatus = []int32{1, 2, 3}
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,
-	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, multiSignAddress types.AccountID) *listener {
-
-	c, err := client.New(url)
-	if err != nil {
-		panic(err)
-	}
-	c.SetPrefix(ss58.PolkadotPrefix)
-
+	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, multiSignAddress types.AccountID, cli *client.Client,
+	resource msg.ResourceId, dest msg.ChainId) *listener {
 	return &listener{
 		name:       name,
 		chainId:    id,
@@ -72,9 +66,11 @@ func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint6
 		sysErr:        sysErr,
 		latestBlock:   metrics.LatestBlock{LastUpdated: time.Now()},
 		metrics:       m,
-		client:        *c,
+		client:        *cli,
 		multiSignAddr: multiSignAddress,
 		msTxAsMulti:   make(map[MultiSignTx]MultiSigAsMulti, 200),
+		resourceId:    resource,
+		destId:        dest,
 	}
 }
 
@@ -267,11 +263,11 @@ func (l *listener) processBlock(hash types.Hash) error {
 			depositNonce, _ := strconv.ParseInt(deposit, 10, 64)
 
 			m := msg.NewFungibleTransfer(
-				msg.ChainId(chainSub), // Unset
-				msg.ChainId(chainAlaya),
+				l.chainId,
+				l.destId,
 				msg.Nonce(depositNonce),
 				big.NewInt(amount),
-				msg.ResourceIdFromSlice(common.FromHex(AKSM)),
+				l.resourceId,
 				recipient,
 			)
 			fmt.Printf("ready to send %d PDOT to %s\n", amount, recipient)
