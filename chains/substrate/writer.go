@@ -118,23 +118,27 @@ func (w *writer) redeemTx(m msg.Message) bool {
 	}
 	fmt.Printf("=========deposit Target is {destAddr: %s, destAmount: %s}\n", depositTarget.DestAddress, depositTarget.DestAmount)
 
-	_, exist := w.listener.depositNonce[depositTarget]
-	if !exist {
-		w.log.Trace("This Tx has been created")
+	nonceIndex := w.listener.getDepositNonceIndex(depositTarget, m.DepositNonce)
+	fmt.Printf("nonceIndex is %v\n", nonceIndex)
+	if nonceIndex < 0 {
 		depositNonce := DepositNonce{
-			Nonce:  m.DepositNonce,
+			Nonce: m.DepositNonce,
+			OriginMsTx: MultiSignTx{
+				BlockNumber:   0,
+				MultiSignTxId: 0,
+			},
 			Status: false,
 		}
 		fmt.Printf(":::::::::::::::::New deal emerges, deposit Nonce is {destNonce: %v, destStatus: %v}\n", depositNonce.Nonce, depositNonce.Status)
-		w.listener.depositNonce[depositTarget] = depositNonce
-	} else if w.listener.depositNonce[depositTarget].Nonce != m.DepositNonce {
+		w.listener.depositNonce[depositTarget] = append(w.listener.depositNonce[depositTarget], depositNonce)
+	} else if w.listener.depositNonce[depositTarget][nonceIndex].Nonce != m.DepositNonce {
 		fmt.Printf("Inconsistent with the nonce in the message, doesn't need to processe\n")
 		return true
-	} else if w.listener.depositNonce[depositTarget].Status {
+	} else if w.listener.depositNonce[depositTarget][nonceIndex].Status {
 		fmt.Printf("The message has been solved, skip it\n")
 		return true
 	} else {
-		fmt.Printf("Deposit exist which is %v\n", w.listener.depositNonce[depositTarget])
+		fmt.Printf("Deposit exist which is %v\n", w.listener.depositNonce[depositTarget][nonceIndex])
 	}
 
 	/// Create a transfer_keep_alive call
@@ -165,27 +169,30 @@ func (w *writer) redeemTx(m msg.Message) bool {
 			var maybeTimePoint interface{}
 			maxWeight := types.Weight(w.maxweight)
 
-			/// Match the correct TimePoint
+			/// Traverse all of matched Tx, included New、Approve、Executed
 			for _, ms := range w.listener.msTxAsMulti {
 				/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
 				/// Validate parameter
+				var isVote = false
 				if ms.DestAddress == destAddress[2:] && ms.DestAmount == bigAmt.String() {
 					if ms.Executed {
 						fmt.Printf("depositNonce %v done(Executed)", m.DepositNonce)
 						return true
 					}
 
-					var isExecuted = false
-
-					for _, relayer := range w.otherSignatories {
+					for i, relayer := range w.otherSignatories {
 						if relayer == types.NewAccountID(w.kr.PublicKey) {
-							isExecuted = true
+							isVote = false
+						}
+						if uint64(i) == w.totalRelayers-2 {
+							isVote = true
 						}
 					}
-
-					if isExecuted {
+					///For Each Tx of New、Approve、Executed，each relayer vote for one Tx
+					if isVote {
 						return true
 					}
+					/// Match the correct TimePoint
 					height := types.U32(ms.OriginMsTx.BlockNumber)
 					value := types.NewOptionU32(height)
 					maybeTimePoint = TimePointSafe32{
@@ -195,6 +202,9 @@ func (w *writer) redeemTx(m msg.Message) bool {
 					fmt.Printf("find the match MultiSign Tx, get TimePoint %v\n", maybeTimePoint)
 				} else {
 					maybeTimePoint = []byte{}
+				}
+				if isVote {
+					return true
 				}
 			}
 			mc, err := types.NewCall(meta, mulMethod, threshold, w.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)

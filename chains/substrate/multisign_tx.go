@@ -23,6 +23,7 @@ type MultiSigAsMulti struct {
 	DestAmount       string
 	StoreCall        bool
 	MaxWeight        uint64
+	DepositNonce     msg.Nonce
 }
 
 type DepositTarget struct {
@@ -31,8 +32,9 @@ type DepositTarget struct {
 }
 
 type DepositNonce struct {
-	Nonce  msg.Nonce
-	Status bool
+	Nonce      msg.Nonce
+	OriginMsTx MultiSignTx
+	Status     bool
 }
 
 type MultiSignTxStatistics struct {
