@@ -25,9 +25,11 @@ var _ core.Writer = &writer{}
 
 var TerminatedError = errors.New("terminated")
 
-var RoundInterval = time.Second * 2
+var RoundInterval = time.Second * 1
 
-const Mod = 3
+const oneToken = 1000000
+
+const Mod = 2
 
 type writer struct {
 	conn               *Connection
@@ -80,7 +82,7 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 			if w.redeemTx(m) {
 				break
 			}
-			time.Sleep(time.Second * 2)
+			time.Sleep(time.Second * 1)
 		}
 		fmt.Printf("--------------------------Writer succeed made a MultiSignTransfer------------------------------------------\n")
 	}()
@@ -102,8 +104,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 	// Convert Pdot amount to DOT amount
 	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
-	oneToken := new(big.Int).Exp(big.NewInt(10), big.NewInt(6), nil)
-	bigAmt.Div(bigAmt, oneToken)
+	bigAmt.Div(bigAmt, big.NewInt(oneToken))
 	amount := types.NewUCompactFromUInt(bigAmt.Uint64())
 	fmt.Printf("call amount = %v\n", amount)
 
@@ -256,10 +257,10 @@ func (w *writer) submitTx(c types.Call) {
 	}
 
 	/// Do the transfer and track the actual status
-	_, err = w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	sub, err := w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
 
 	/// Watch the Result
-	//err = w.watchSubmission(sub)
+	err = w.watchSubmission(sub)
 	if err != nil {
 		fmt.Printf("subWriter meet err: %v\n", err)
 	}
