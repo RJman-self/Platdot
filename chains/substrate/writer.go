@@ -172,18 +172,19 @@ func (w *writer) redeemTx(m msg.Message) bool {
 			for _, ms := range w.listener.msTxAsMulti {
 				/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
 				/// Validate parameter
-				var isVote = false
+				var isVote = true
 				if ms.DestAddress == destAddress[2:] && ms.DestAmount == bigAmt.String() {
 					if ms.Executed {
 						fmt.Printf("depositNonce %v done(Executed)", m.DepositNonce)
 						return true
 					}
 
-					for i, relayer := range w.otherSignatories {
-						if relayer == types.NewAccountID(w.kr.PublicKey) {
+					for i, relayer := range ms.OtherSignatories {
+						ot := types.NewAccountID(w.kr.PublicKey)
+						if relayer == string(ot[:]) {
 							isVote = false
 						}
-						if uint64(i) == w.totalRelayers-2 {
+						if !isVote && uint64(i) == w.totalRelayers-2 {
 							isVote = true
 						}
 					}
