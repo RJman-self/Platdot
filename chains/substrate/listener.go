@@ -256,7 +256,6 @@ func (l *listener) processBlock(hash types.Hash) error {
 					//fmt.Printf("extrinsic of depositNonce %d has been executed\n", l.depositNonce[depositTarget][nonceIndex])
 				}
 			}
-			//delete(l.msTxAsMulti, l.msTxStatistics.CurrentTx)
 			l.msTxStatistics.TotalCount++
 		}
 		if e.Type == polkadot.UtilityBatch {

@@ -17,7 +17,6 @@ import (
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	utils "github.com/rjman-self/Platdot/shared/substrate"
 	"math/big"
-	"sync"
 	"time"
 )
 
@@ -25,7 +24,7 @@ var _ core.Writer = &writer{}
 
 var TerminatedError = errors.New("terminated")
 
-var RoundInterval = time.Second * 6
+var RoundInterval = time.Second * 2
 
 /// Processing concurrent transactions, the value of nonce increased
 //const concurrent = 41
@@ -113,24 +112,28 @@ func (w *writer) updateNonceUsed() {
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.log.Info("start a redeemTx")
-	var mutex sync.Mutex
+	//var mutex sync.Mutex
 	go func() {
 		//var RetryLimit = 5
+		//mutex.Lock()
 		for {
-			time.Sleep(RoundInterval)
+			//time.Sleep(RoundInterval)
 			fmt.Printf("msg.DepositNonce is %v\n", m.DepositNonce)
-			mutex.Lock()
-			if w.redeemTx(m) {
+			isFinished, currentTx := w.redeemTx(m)
+			if isFinished {
 				w.log.Info("finish a redeemTx")
+				if currentTx.BlockNumber != -1 && currentTx.MultiSignTxId != 0 {
+					delete(w.listener.msTxAsMulti, currentTx)
+				}
 				break
 			}
-			mutex.Unlock()
 		}
+		//mutex.Unlock()
 	}()
 	return true
 }
 
-func (w *writer) redeemTx(m msg.Message) bool {
+func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
 
 	meta, err := w.msApi.RPC.State.GetMetadataLatest()
@@ -171,7 +174,6 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 	for {
 		round := w.getRound()
-		time.Sleep(RoundInterval)
 		if round.Uint64() == (w.currentRelayer*Mod - 1) {
 			fmt.Printf("Round #%d , relayer to send a MultiSignTx, depositNonce #%d\n", round.Uint64(), m.DepositNonce)
 			/// Try to find a exist MultiSignTx
@@ -186,7 +188,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 				if ms.DestAddress == destAddress[2:] && ms.DestAmount == bigAmt.String() {
 					if ms.Executed {
 						fmt.Printf("depositNonce %v done(Executed), block %d\n", m.DepositNonce, ms.OriginMsTx.BlockNumber)
-						return true
+						return true, ms.OriginMsTx
 					}
 
 					for _, signatory := range ms.OtherSignatories {
@@ -200,7 +202,10 @@ func (w *writer) redeemTx(m msg.Message) bool {
 					//For Each Tx of New、Approve、Executed，each relayer vote for one Tx
 					if isVote {
 						w.log.Info("relayer has vote, exit!")
-						return true
+						return true, MultiSignTx{
+							BlockNumber:   -1,
+							MultiSignTxId: 0,
+						}
 					}
 					/// Match the correct TimePoint
 					height := types.U32(ms.OriginMsTx.BlockNumber)
@@ -211,6 +216,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 					}
 					maxWeight = types.Weight(w.maxWeight)
 					fmt.Printf("find the match MultiSign Tx, get TimePoint %v\n", maybeTimePoint)
+					break
 				} else {
 					//fmt.Printf("Tx %d found, but not current Tx\n", ms.OriginMsTx)
 					maybeTimePoint = []byte{}
@@ -230,13 +236,17 @@ func (w *writer) redeemTx(m msg.Message) bool {
 			///BEGIN: Submit a MultiSignExtrinsic to Polkadot
 			w.submitTx(mc)
 
-			return false
+			return false, MultiSignTx{
+				BlockNumber:   -1,
+				MultiSignTxId: 0,
+			}
 			//fmt.Printf("sleep a round for %fs\n", RoundInterval.Seconds())
 			//time.Sleep(RoundInterval)
 			///END: Submit a MultiSignExtrinsic to Polkadot
 
 			///Round over, wait a RoundInterval
 		}
+		time.Sleep(RoundInterval)
 	}
 }
 
@@ -294,11 +304,11 @@ func (w *writer) submitTx(c types.Call) {
 	}
 
 	/// Do the transfer and track the actual status
-	_, err = w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
+	_, _ = w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
 
 	/// Watch the Result
 	//err = w.watchSubmission(sub)
-	fmt.Printf("succeed submitTx to Polkadot , meet err: %v\n", err)
+	//fmt.Printf("succeed submitTx to Polkadot , meet err: %v\n", err)
 }
 
 func (w *writer) getRound() *big.Int {
