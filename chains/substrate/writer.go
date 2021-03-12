@@ -17,6 +17,7 @@ import (
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	utils "github.com/rjman-self/Platdot/shared/substrate"
 	"math/big"
+	"sync"
 	"time"
 )
 
@@ -112,15 +113,18 @@ func (w *writer) updateNonceUsed() {
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.log.Info("start a redeemTx")
-
+	var mutex sync.Mutex
 	go func() {
 		//var RetryLimit = 5
 		for {
+			time.Sleep(RoundInterval)
 			fmt.Printf("msg.DepositNonce is %v\n", m.DepositNonce)
+			mutex.Lock()
 			if w.redeemTx(m) {
 				w.log.Info("finish a redeemTx")
 				break
 			}
+			mutex.Unlock()
 		}
 	}()
 	return true

@@ -234,7 +234,10 @@ func (l *listener) processBlock(hash types.Hash) error {
 			//msTxAsMulti.OriginMsTx = l.msTxStatistics.CurrentTx
 			///Find An existing multi-signed transaction in the record, and marks for executed status
 			for k, ms := range l.msTxAsMulti {
-				if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == ms.DestAmount {
+				if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == msTx.DestAmount {
+					fmt.Printf("ExecuteTx addr = %v, amount = %v\n", msTx.DestAddress, msTx.DestAmount)
+					fmt.Printf("Execute #%d\n", ms.OriginMsTx.BlockNumber)
+
 					exeMsTx := l.msTxAsMulti[k]
 					exeMsTx.Executed = true
 					l.msTxAsMulti[k] = exeMsTx
