@@ -129,17 +129,16 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 	var Fred = "0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c"
 	var recipients = [6]string{Alice, Bob, Charlie, Dave, Eve, Fred}
 	for i := 0; i < 2; i++ {
-		dataReturn := utils.ConstructErc20DepositData([]byte(recipients[i]), big.NewInt(5000000000000000000))
+		dataReturn := utils.ConstructErc20DepositData([]byte(recipients[i]), big.NewInt(6000000000000000000))
 		w.conn.Opts().Nonce = w.conn.Opts().Nonce.Add(w.conn.Opts().Nonce, big.NewInt(1))
 		w.conn.Opts().Value = big.NewInt(0)
-		DepositTx, err := w.bridgeContract.Deposit(
+		_, err := w.bridgeContract.Deposit(
 			w.conn.Opts(),
 			uint8(m.Source),
 			m.ResourceId,
 			dataReturn,
 		)
-
-		log.Info("No.", i, " Deposit Result:", "dataReturn", dataReturn, "DepositTx", DepositTx)
+		//w.log.Info("No.", i, " Deposit Result: ", dataReturn, "DepositTx", DepositTx)
 		if err != nil {
 			log.Info("err is %v\n", err)
 		}

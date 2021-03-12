@@ -27,12 +27,13 @@ var TerminatedError = errors.New("terminated")
 var RoundInterval = time.Second * 3
 
 /// Processing concurrent transactions, the value of nonce increased
-const concurrent = 41
-
-var NonceUsed = [concurrent + 1]bool{false}
+//const concurrent = 41
+//var NonceUsed = [concurrent + 1]bool{false}
+//var totalTx = uint64(0)
+//var nonceIncreased = uint64(0)
 
 const oneToken = 1000000
-const Mod = 1
+const Mod = 2
 
 type writer struct {
 	conn               *Connection
@@ -76,44 +77,49 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 	}
 }
 
-func (w *writer) initNonceUsed() {
-	for i, _ := range NonceUsed {
-		if i < concurrent/2 {
-			/// Mark as finished nonce
-			NonceUsed[i] = true
-		} else {
-			/// Nonce waiting to be processed
-			NonceUsed[i] = false
-		}
-	}
-}
+//func (w *writer) initNonceUsed() {
+//	for i, _ := range NonceUsed {
+//		if i < concurrent/2 {
+//			/// Mark as finished nonce
+//			NonceUsed[i] = true
+//		} else {
+//			/// Nonce waiting to be processed
+//			NonceUsed[i] = false
+//		}
+//	}
+//}
+//
+//func (w *writer) getNonceUnused() int {
+//	mid := concurrent / 2
+//	for i, nc := range NonceUsed {
+//		/// Unused and past nonce, increase negative value
+//		if !nc {
+//			if i <= mid {
+//				return i - mid
+//			} else {
+//				return mid - i
+//			}
+//		}
+//	}
+//	return -1
+//}
 
-func (w *writer) getNonceIncreased() int {
-	mid := concurrent / 2
-	for i, nc := range NonceUsed {
-		/// Unused and past nonce, increase negative value
-		if !nc {
-			if i <= mid {
-				return i - mid
-			} else {
-				return mid - i
-			}
-		}
-	}
-	return -1
+func (w *writer) updateNonceUsed() {
+	//for i, nc := range NonceUsed {
+	//
+	//}
 }
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.log.Info("start a redeemTx")
-	fmt.Printf("msg.DepositNonce is %v\n", m.DepositNonce)
-	//w.initNonceUsed()
+
 	go func() {
 		var RetryLimit = 5
 		for i := 0; i < RetryLimit; i++ {
+			fmt.Printf("msg.DepositNonce is %v\n", m.DepositNonce)
 			if w.redeemTx(m) {
 				break
 			}
-			time.Sleep(time.Second * 1)
 		}
 		w.log.Info("finish a redeemTx")
 	}()
@@ -161,9 +167,8 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 	for {
 		round := w.getRound()
-		time.Sleep(RoundInterval)
 		if round.Uint64() == (w.currentRelayer*Mod - 1) {
-			//w.log.Info("Round #", round.Uint64(), ", relayer to send a MultiSignTx, depositNonce #", m.DepositNonce)
+			fmt.Printf("Round #%d , relayer to send a MultiSignTx, depositNonce #%d\n", round.Uint64(), m.DepositNonce)
 			/// Try to find a exist MultiSignTx
 			var maybeTimePoint interface{}
 			maxWeight := types.Weight(w.maxWeight)
@@ -215,9 +220,12 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 			///BEGIN: Submit a MultiSignExtrinsic to Polkadot
 			w.submitTx(mc)
+			fmt.Printf("sleep a round for %fs\n", RoundInterval.Seconds())
+			time.Sleep(RoundInterval)
 			///END: Submit a MultiSignExtrinsic to Polkadot
 
 			///Round over, wait a RoundInterval
+		} else {
 			time.Sleep(RoundInterval)
 		}
 	}
@@ -256,6 +264,7 @@ func (w *writer) submitTx(c types.Call) {
 
 	/// Extrinsic nonce
 	nonce := uint32(accountInfo.Nonce)
+	//w.getNonceIncreased()
 
 	/// Construct signature option
 	o := types.SignatureOptions{
@@ -280,9 +289,7 @@ func (w *writer) submitTx(c types.Call) {
 
 	/// Watch the Result
 	//err = w.watchSubmission(sub)
-	if err != nil {
-		fmt.Printf("subWriter meet err: %v\n", err)
-	}
+	fmt.Printf("succeed submitTx to Polkadot , meet err: %v\n", err)
 }
 
 func (w *writer) getRound() *big.Int {
