@@ -33,7 +33,7 @@ var RoundInterval = time.Second * 6
 //var nonceIncreased = uint64(0)
 
 const oneToken = 1000000
-const Mod = 2
+const Mod = 1
 
 type writer struct {
 	conn               *Connection
@@ -172,7 +172,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 			fmt.Printf("Round #%d , relayer to send a MultiSignTx, depositNonce #%d\n", round.Uint64(), m.DepositNonce)
 			/// Try to find a exist MultiSignTx
 			var maybeTimePoint interface{}
-			maxWeight := types.Weight(w.maxWeight)
+			maxWeight := types.Weight(0)
 
 			/// Traverse all of matched Tx, included New、Approve、Executed
 			for _, ms := range w.listener.msTxAsMulti {
@@ -181,7 +181,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 				var isVote = true
 				if ms.DestAddress == destAddress[2:] && ms.DestAmount == bigAmt.String() {
 					if ms.Executed {
-						fmt.Printf("depositNonce %v done(Executed)", m.DepositNonce)
+						fmt.Printf("depositNonce %v done(Executed), block %d\n", m.DepositNonce, ms.OriginMsTx.BlockNumber)
 						return true
 					}
 
@@ -205,9 +205,10 @@ func (w *writer) redeemTx(m msg.Message) bool {
 						Height: value,
 						Index:  types.U32(ms.OriginMsTx.MultiSignTxId),
 					}
+					maxWeight = types.Weight(w.maxWeight)
 					fmt.Printf("find the match MultiSign Tx, get TimePoint %v\n", maybeTimePoint)
 				} else {
-					fmt.Printf("Tx %d found, but not current Tx\n", ms.OriginMsTx)
+					//fmt.Printf("Tx %d found, but not current Tx\n", ms.OriginMsTx)
 					maybeTimePoint = []byte{}
 					continue
 				}
