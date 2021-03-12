@@ -24,7 +24,7 @@ var _ core.Writer = &writer{}
 
 var TerminatedError = errors.New("terminated")
 
-var RoundInterval = time.Second * 3
+var RoundInterval = time.Second * 6
 
 /// Processing concurrent transactions, the value of nonce increased
 //const concurrent = 41
@@ -114,14 +114,14 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.log.Info("start a redeemTx")
 
 	go func() {
-		var RetryLimit = 5
-		for i := 0; i < RetryLimit; i++ {
+		//var RetryLimit = 5
+		for {
 			fmt.Printf("msg.DepositNonce is %v\n", m.DepositNonce)
 			if w.redeemTx(m) {
+				w.log.Info("finish a redeemTx")
 				break
 			}
 		}
-		w.log.Info("finish a redeemTx")
 	}()
 	return true
 }
@@ -167,6 +167,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 	for {
 		round := w.getRound()
+		time.Sleep(RoundInterval)
 		if round.Uint64() == (w.currentRelayer*Mod - 1) {
 			fmt.Printf("Round #%d , relayer to send a MultiSignTx, depositNonce #%d\n", round.Uint64(), m.DepositNonce)
 			/// Try to find a exist MultiSignTx
@@ -194,7 +195,7 @@ func (w *writer) redeemTx(m msg.Message) bool {
 					}
 					//For Each Tx of New、Approve、Executed，each relayer vote for one Tx
 					if isVote {
-						fmt.Printf("relayer has vote, exit!\n")
+						w.log.Info("relayer has vote, exit!")
 						return true
 					}
 					/// Match the correct TimePoint
@@ -206,12 +207,15 @@ func (w *writer) redeemTx(m msg.Message) bool {
 					}
 					fmt.Printf("find the match MultiSign Tx, get TimePoint %v\n", maybeTimePoint)
 				} else {
+					fmt.Printf("Tx %d found, but not current Tx\n", ms.OriginMsTx)
 					maybeTimePoint = []byte{}
+					continue
 				}
 			}
 			if len(w.listener.msTxAsMulti) == 0 {
 				maybeTimePoint = []byte{}
 			}
+
 			mc, err := types.NewCall(meta, mulMethod, threshold, w.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
 			if err != nil {
 				panic(err)
@@ -220,13 +224,13 @@ func (w *writer) redeemTx(m msg.Message) bool {
 
 			///BEGIN: Submit a MultiSignExtrinsic to Polkadot
 			w.submitTx(mc)
-			fmt.Printf("sleep a round for %fs\n", RoundInterval.Seconds())
-			time.Sleep(RoundInterval)
+
+			return false
+			//fmt.Printf("sleep a round for %fs\n", RoundInterval.Seconds())
+			//time.Sleep(RoundInterval)
 			///END: Submit a MultiSignExtrinsic to Polkadot
 
 			///Round over, wait a RoundInterval
-		} else {
-			time.Sleep(RoundInterval)
 		}
 	}
 }

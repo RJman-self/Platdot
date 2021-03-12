@@ -237,6 +237,7 @@ func (l *listener) processBlock(hash types.Hash) error {
 				if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == ms.DestAmount {
 					exeMsTx := l.msTxAsMulti[k]
 					exeMsTx.Executed = true
+					l.msTxAsMulti[k] = exeMsTx
 					//depositTarget := DepositTarget{
 					//	DestAddress: ms.DestAddress,
 					//	DestAmount:  ms.DestAmount,
