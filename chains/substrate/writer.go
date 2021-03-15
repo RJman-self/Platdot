@@ -26,12 +26,6 @@ var TerminatedError = errors.New("terminated")
 
 var RoundInterval = time.Second * 2
 
-/// Processing concurrent transactions, the value of nonce increased
-//const concurrent = 41
-//var NonceUsed = [concurrent + 1]bool{false}
-//var totalTx = uint64(0)
-//var nonceIncreased = uint64(0)
-
 const oneToken = 1000000
 const Mod = 1
 
@@ -77,48 +71,11 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 	}
 }
 
-//func (w *writer) initNonceUsed() {
-//	for i, _ := range NonceUsed {
-//		if i < concurrent/2 {
-//			/// Mark as finished nonce
-//			NonceUsed[i] = true
-//		} else {
-//			/// Nonce waiting to be processed
-//			NonceUsed[i] = false
-//		}
-//	}
-//}
-//
-//func (w *writer) getNonceUnused() int {
-//	mid := concurrent / 2
-//	for i, nc := range NonceUsed {
-//		/// Unused and past nonce, increase negative value
-//		if !nc {
-//			if i <= mid {
-//				return i - mid
-//			} else {
-//				return mid - i
-//			}
-//		}
-//	}
-//	return -1
-//}
-
-func (w *writer) updateNonceUsed() {
-	//for i, nc := range NonceUsed {
-	//
-	//}
-}
-
 func (w *writer) ResolveMessage(m msg.Message) bool {
-	w.log.Info("start a redeemTx")
-	//var mutex sync.Mutex
+	w.log.Info("Start a redeemTx...")
 	go func() {
-		//var RetryLimit = 5
-		//mutex.Lock()
 		for {
-			//time.Sleep(RoundInterval)
-			fmt.Printf("msg.DepositNonce is %v\n", m.DepositNonce)
+			w.log.Info("DepositNonce", m.DepositNonce)
 			isFinished, currentTx := w.redeemTx(m)
 			if isFinished {
 				w.log.Info("finish a redeemTx")
@@ -128,14 +85,11 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 				break
 			}
 		}
-		//mutex.Unlock()
 	}()
 	return true
 }
 
 func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
-	//var phrase = "outer spike flash urge bus text aim public drink pumpkin pretty loan"
-
 	meta, err := w.msApi.RPC.State.GetMetadataLatest()
 	if err != nil {
 		panic(err)
@@ -143,18 +97,18 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
 
-	///BEGIN: Create a call of transfer
+	// BEGIN: Create a call of transfer
 	method := string(utils.BalancesTransferKeepAliveMethod)
 
-	// Convert Pdot amount to DOT amount
+	// Convert PDOT amount to DOT amount
 	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
 	bigAmt.Div(bigAmt, big.NewInt(oneToken))
 	amount := types.NewUCompactFromUInt(bigAmt.Uint64())
 
-	/// Get recipient of Polkadot
+	// Get recipient of Polkadot
 	recipient, _ := types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
 
-	/// Create a transfer_keep_alive call
+	// Create a transfer_keep_alive call
 	c, err := types.NewCall(
 		meta,
 		method,
@@ -165,41 +119,41 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 		panic(err)
 	}
 
-	//BEGIN: Create a call of MultiSignTransfer
+	// BEGIN: Create a call of MultiSignTransfer
 	mulMethod := string(utils.MultisigAsMulti)
 	var threshold = w.multiSignThreshold
 
-	// parameters of multiSignature
+	// Get parameters of multiSignature
 	destAddress := string(m.Payload[1].([]byte))
 
 	for {
 		round := w.getRound()
 		if round.Uint64() == (w.currentRelayer*Mod - 1) {
 			fmt.Printf("Round #%d , relayer to send a MultiSignTx, depositNonce #%d\n", round.Uint64(), m.DepositNonce)
-			/// Try to find a exist MultiSignTx
+			// Try to find a exist MultiSignTx
 			var maybeTimePoint interface{}
 			maxWeight := types.Weight(0)
 
-			/// Traverse all of matched Tx, included New、Approve、Executed
+			// Traverse all of matched Tx, included New、Approve、Executed
 			for _, ms := range w.listener.msTxAsMulti {
-				/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
-				/// Validate parameter
+				// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
+				// Validate parameter
 				var isVote = true
 				if ms.DestAddress == destAddress[2:] && ms.DestAmount == bigAmt.String() {
 					if ms.Executed {
 						fmt.Printf("depositNonce %v done(Executed), block %d\n", m.DepositNonce, ms.OriginMsTx.BlockNumber)
+						w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "BlockNumber", ms.OriginMsTx.BlockNumber)
 						return true, ms.OriginMsTx
 					}
 
 					for _, signatory := range ms.OtherSignatories {
 						voter, _ := types.NewAddressFromHexAccountID(signatory)
 						relayer := types.NewAddressFromAccountID(w.kr.PublicKey)
-						//fmt.Printf("voter = %v\nrelayer = %v\n", voter, relayer)
 						if voter == relayer {
 							isVote = false
 						}
 					}
-					//For Each Tx of New、Approve、Executed，each relayer vote for one Tx
+					// For Each Tx of New、Approve、Executed，each relayer vote for one Tx
 					if isVote {
 						w.log.Info("relayer has vote, exit!")
 						return true, MultiSignTx{
@@ -207,7 +161,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 							MultiSignTxId: 0,
 						}
 					}
-					/// Match the correct TimePoint
+					// Match the correct TimePoint
 					height := types.U32(ms.OriginMsTx.BlockNumber)
 					value := types.NewOptionU32(height)
 					maybeTimePoint = TimePointSafe32{
@@ -215,10 +169,9 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 						Index:  types.U32(ms.OriginMsTx.MultiSignTxId),
 					}
 					maxWeight = types.Weight(w.maxWeight)
-					fmt.Printf("find the match MultiSign Tx, get TimePoint %v\n", maybeTimePoint)
+					w.log.Info("Find a matched MultiSign Tx!", "TimePoint", maybeTimePoint)
 					break
 				} else {
-					//fmt.Printf("Tx %d found, but not current Tx\n", ms.OriginMsTx)
 					maybeTimePoint = []byte{}
 					continue
 				}
@@ -240,8 +193,6 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 				BlockNumber:   -1,
 				MultiSignTxId: 0,
 			}
-			//fmt.Printf("sleep a round for %fs\n", RoundInterval.Seconds())
-			//time.Sleep(RoundInterval)
 			///END: Submit a MultiSignExtrinsic to Polkadot
 
 			///Round over, wait a RoundInterval
@@ -251,8 +202,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 }
 
 func (w *writer) submitTx(c types.Call) {
-	///BEGIN: Get the essential information first
-
+	// BEGIN: Get the essential information first
 	meta, err := w.msApi.RPC.State.GetMetadataLatest()
 	if err != nil {
 		panic(err)
@@ -272,20 +222,19 @@ func (w *writer) submitTx(c types.Call) {
 	if err != nil {
 		panic(err)
 	}
-	///END: Get the essential information
+	// END: Get the essential information
 
-	/// Validate account and get account information
+	// Validate account and get account information
 	var accountInfo types.AccountInfo
 	ok, err := w.msApi.RPC.State.GetStorageLatest(key, &accountInfo)
 	if err != nil || !ok {
 		panic(err)
 	}
 
-	/// Extrinsic nonce
+	// Extrinsic nonce
 	nonce := uint32(accountInfo.Nonce)
-	//w.getNonceIncreased()
 
-	/// Construct signature option
+	// Construct signature option
 	o := types.SignatureOptions{
 		BlockHash:          genesisHash,
 		Era:                types.ExtrinsicEra{IsMortalEra: false},
@@ -296,19 +245,15 @@ func (w *writer) submitTx(c types.Call) {
 		TransactionVersion: rv.TransactionVersion,
 	}
 
-	/// Create and Sign the MultiSign
+	// Create and Sign the MultiSign
 	ext := types.NewExtrinsic(c)
 	err = ext.MultiSign(w.kr, o)
 	if err != nil {
 		panic(err)
 	}
 
-	/// Do the transfer and track the actual status
+	// Do the transfer and track the actual status
 	_, _ = w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
-
-	/// Watch the Result
-	//err = w.watchSubmission(sub)
-	//fmt.Printf("succeed submitTx to Polkadot , meet err: %v\n", err)
 }
 
 func (w *writer) getRound() *big.Int {
@@ -326,7 +271,6 @@ func (w *writer) getRound() *big.Int {
 	height := big.NewInt(int64(finalizedHeader.Number))
 	round := big.NewInt(0)
 	round.Mod(height, big.NewInt(int64(w.totalRelayers*Mod))).Uint64()
-	//w.log.Info("block is ", height.Uint64(), ", round is ", round.Uint64())
 	return round
 }
 
@@ -350,36 +294,4 @@ func (w *writer) watchSubmission(sub *author.ExtrinsicStatusSubscription) error 
 			return err
 		}
 	}
-}
-
-func (w *writer) recordDepositNonce(m msg.Message) {
-	//// Record the depositNonce
-	//depositTarget := DepositTarget{
-	//	DestAddress: string(m.Payload[1].([]byte)),
-	//	DestAmount:  strconv.FormatInt(int64(bigAmt.Uint64()), 10),
-	//}
-	//fmt.Printf("=========deposit Target is {destAddr: %s, destAmount: %s}\n", depositTarget.DestAddress, depositTarget.DestAmount)
-	//
-	//nonceIndex := w.listener.getDepositNonceIndex(depositTarget, m.DepositNonce)
-	//fmt.Printf("nonceIndex is %v\n", nonceIndex)
-	//if nonceIndex < 0 {
-	//	depositNonce := DepositNonce{
-	//		Nonce: m.DepositNonce,
-	//		OriginMsTx: MultiSignTx{
-	//			BlockNumber:   0,
-	//			MultiSignTxId: 0,
-	//		},
-	//		Status: false,
-	//	}
-	//	fmt.Printf(":::::::::::::::::New deal emerges, deposit Nonce is {destNonce: %v, destStatus: %v}\n", depositNonce.Nonce, depositNonce.Status)
-	//	w.listener.depositNonce[depositTarget] = append(w.listener.depositNonce[depositTarget], depositNonce)
-	//} else if w.listener.depositNonce[depositTarget][nonceIndex].Nonce != m.DepositNonce {
-	//	fmt.Printf("Inconsistent with the nonce in the message, doesn't need to processe\n")
-	//	return true
-	//} else if w.listener.depositNonce[depositTarget][nonceIndex].Status {
-	//	fmt.Printf("The message has been solved, skip it\n")
-	//	return true
-	//} else {
-	//	fmt.Printf("Deposit exist which is %v\n", w.listener.depositNonce[depositTarget][nonceIndex])
-	//}
 }

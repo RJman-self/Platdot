@@ -167,9 +167,9 @@ func run(ctx *cli.Context) error {
 	c := core.NewCore(sysErr)
 
 	for _, chain := range cfg.Chains {
-		chainId, errr := strconv.Atoi(chain.Id)
-		if errr != nil {
-			return errr
+		chainId, err := strconv.Atoi(chain.Id)
+		if err != nil {
+			return err
 		}
 		chainConfig := &core.ChainConfig{
 			Name:           chain.Name,

@@ -31,13 +31,12 @@ type Connection struct {
 	maxGasPrice   *big.Int
 	gasMultiplier *big.Float
 	conn          *ethclient.Client
-	// signer    ethtypes.Signer
-	opts     *bind.TransactOpts
-	callOpts *bind.CallOpts
-	nonce    uint64
-	optsLock sync.Mutex
-	log      log15.Logger
-	stop     chan int // All routines should exit when this channel is closed
+	opts          *bind.TransactOpts
+	callOpts      *bind.CallOpts
+	nonce         uint64
+	optsLock      sync.Mutex
+	log           log15.Logger
+	stop          chan int // All routines should exit when this channel is closed
 }
 
 // NewConnection returns an uninitialized connection, must call Connection.Connect() before using.

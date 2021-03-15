@@ -65,7 +65,7 @@ func checkBlockstore(bs *blockstore.Blockstore, startBlock uint64) (uint64, erro
 }
 
 func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics) (*Chain, error) {
-
+	// Load keypair
 	kp, err := keystore.KeypairFromAddress(cfg.From, keystore.SubChain, cfg.KeystorePath, cfg.Insecure)
 	if err != nil {
 		return nil, err
@@ -100,7 +100,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		startBlock = uint64(curr.Number)
 	}
 
-	// load listener and writer needed config
+	// Load listener and writer needed config
 	ue := parseUseExtended(cfg)
 	otherRelayers := parseOtherRelayer(cfg)
 	multiSignAddress := parseMultiSignAddress(cfg)

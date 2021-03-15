@@ -61,19 +61,9 @@ func NewListener(conn Connection, cfg *Config, log log15.Logger, bs blockstore.B
 	}
 }
 
-// setContracts sets the listener with the appropriate contracts
-//func (l *listener) setContracts(bridge *Bridge.Bridge, erc20Handler *ERC20Handler.ERC20Handler, erc721Handler *ERC721Handler.ERC721Handler, genericHandler *GenericHandler.GenericHandler) {
-//	l.bridgeContract = bridge
-//	l.erc20HandlerContract = erc20Handler
-//	l.erc721HandlerContract = erc721Handler
-//	l.genericHandlerContract = genericHandler
-//}
-
 func (l *listener) setContracts(bridge *Bridge.Bridge, erc20Handler *ERC20Handler.ERC20Handler) {
 	l.bridgeContract = bridge
 	l.erc20HandlerContract = erc20Handler
-	//l.erc721HandlerContract = erc721Handler
-	//l.genericHandlerContract = genericHandler
 }
 
 // sets the router
@@ -167,16 +157,15 @@ func (l *listener) pollBlocks() error {
 func (l *listener) getDepositEventsForBlock(latestBlock *big.Int) error {
 	l.log.Debug("Querying block for deposit events", "block", latestBlock)
 
-	//bridgeAddress, _ := ethcommon.PlatonToEth(string(l.cfg.bridgeContract[:]))
 	query := buildQuery(l.cfg.bridgeContract, utils.Deposit, latestBlock, latestBlock)
 
-	// querying for logs
+	// Query for logs
 	logs, err := l.conn.Client().FilterLogs(context.Background(), query)
 	if err != nil {
 		return fmt.Errorf("unable to Filter Logs: %w", err)
 	}
 
-	// read through the log events and handle their deposit event if handler is recognized
+	// Read through the log events and handle their deposit event if handler is recognized
 	for _, log := range logs {
 		var m msg.Message
 		fmt.Printf("loop logs get %s\n", log.Topics[0])
@@ -188,8 +177,7 @@ func (l *listener) getDepositEventsForBlock(latestBlock *big.Int) error {
 		ncBig := new(big.Int).SetBytes(nc)
 		nonce := msg.Nonce(ncBig.Uint64())
 
-		fmt.Printf("parse that destId is %s\nrId is %s\nnonce is %s\n", dest, rId, nc)
-		fmt.Printf("parse that destId is %v\nrId is %v\nnonce is %v\n", destId, rId, nonce)
+		l.log.Info("Parse event successfully.", "DestId", dest, "ResourceId", rId, "Nonce", nonce)
 		addr, err := l.bridgeContract.ResourceIDToHandlerAddress(&bind.CallOpts{From: l.conn.Keypair().CommonAddress()}, rId)
 		if err != nil {
 			return fmt.Errorf("failed to get handler from resource ID %x", rId)

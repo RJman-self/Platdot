@@ -101,7 +101,7 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 
 	if !w.shouldVote(m, dataHash) {
 		if w.proposalIsPassed(m.Source, m.DepositNonce, dataHash) {
-			// We should not vote for this proposal but it is ready to be executed
+			// Execute if proposal passed
 			w.executeProposal(m, data, dataHash)
 			return true
 		} else {
@@ -116,7 +116,7 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 		return false
 	}
 
-	// watch for execution event
+	// Watch for execution event
 	go w.watchThenExecute(m, data, dataHash, latestBlock)
 
 	w.voteProposal(m, dataHash)
@@ -138,7 +138,6 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 			m.ResourceId,
 			dataReturn,
 		)
-		//w.log.Info("No.", i, " Deposit Result: ", dataReturn, "DepositTx", DepositTx)
 		if err != nil {
 			log.Info("err is %v\n", err)
 		}
@@ -206,7 +205,7 @@ func (w *writer) createGenericDepositProposal(m msg.Message) bool {
 		return false
 	}
 
-	// watch for execution event
+	// Watch for execution event
 	go w.watchThenExecute(m, data, dataHash, latestBlock)
 
 	w.voteProposal(m, dataHash)
@@ -218,13 +217,13 @@ func (w *writer) createGenericDepositProposal(m msg.Message) bool {
 func (w *writer) watchThenExecute(m msg.Message, data []byte, dataHash [32]byte, latestBlock *big.Int) {
 	w.log.Info("Watching for finalization event", "src", m.Source, "nonce", m.DepositNonce)
 
-	// watching for the latest block, querying and matching the finalized event will be retried up to ExecuteBlockWatchLimit times
+	// Watching for the latest block, querying and matching the finalized event will be retried up to ExecuteBlockWatchLimit times
 	for i := 0; i < ExecuteBlockWatchLimit; i++ {
 		select {
 		case <-w.stop:
 			return
 		default:
-			//watch for the lastest block, retry up to BlockRetryLimit times
+			// Watch for the lastest block, retry up to BlockRetryLimit times
 			for waitRetrys := 0; waitRetrys < BlockRetryLimit; waitRetrys++ {
 				err := w.conn.WaitForBlock(latestBlock, big.NewInt(1))
 				if err != nil {
@@ -248,7 +247,7 @@ func (w *writer) watchThenExecute(m msg.Message, data []byte, dataHash [32]byte,
 				return
 			}
 
-			// execute the proposal once we find the matching finalized event
+			// Execute the proposal once we find the matching finalized event
 			for _, evt := range evts {
 				w.log.Info("Proposal log")
 

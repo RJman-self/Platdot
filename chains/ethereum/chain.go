@@ -28,9 +28,6 @@ import (
 	"os"
 	"strconv"
 
-	//"github.com/rjman-self/Platdot/config"
-	"math/big"
-	//"github.com/ChainSafe/chainbridge-utils/keystore"
 	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
@@ -40,6 +37,7 @@ import (
 	bridge "github.com/rjman-self/Platdot/bindings/Bridge"
 	erc20Handler "github.com/rjman-self/Platdot/bindings/ERC20Handler"
 	connection "github.com/rjman-self/Platdot/connections/ethereum"
+	"math/big"
 )
 
 var _ core.Chain = &Chain{}
@@ -80,10 +78,12 @@ func setupBlockstore(cfg *Config, kp *secp256k1.Keypair) (*blockstore.Blockstore
 }
 
 func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics) (*Chain, error) {
+	// parse config
 	cfg, err := parseChainConfig(chainCfg)
 	if err != nil {
 		return nil, err
 	}
+
 	// set alaya chainid
 	err = os.Setenv("Alaya_ChainId", strconv.Itoa(int(cfg.id)))
 	if err != nil {
