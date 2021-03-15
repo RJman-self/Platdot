@@ -11,7 +11,6 @@ import (
 	"github.com/ChainSafe/chainbridge-utils/msg"
 	"github.com/ChainSafe/log15"
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/config"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/rpc/author"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
@@ -49,7 +48,7 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 	m *metrics.ChainMetrics, extendCall bool, krp *signature.KeyringPair, otherRelayers []types.AccountID,
 	total uint64, current uint64, threshold uint16, weight uint64) *writer {
 
-	api, err := gsrpc.NewSubstrateAPI(config.Default().RPCURL)
+	api, err := gsrpc.NewSubstrateAPI(conn.url)
 	if err != nil {
 		panic(err)
 	}
@@ -75,7 +74,6 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.log.Info("Start a redeemTx...")
 	go func() {
 		for {
-			w.log.Info("DepositNonce", m.DepositNonce)
 			isFinished, currentTx := w.redeemTx(m)
 			if isFinished {
 				w.log.Info("finish a redeemTx")
