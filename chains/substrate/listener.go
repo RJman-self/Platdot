@@ -46,15 +46,18 @@ type listener struct {
 // Frequency of polling for a new block
 var BlockRetryInterval = time.Second * 5
 
+//var BlockRetryLimit = 5
+
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,
 	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, multiSignAddress types.AccountID, cli *client.Client,
 	resource msg.ResourceId, dest msg.ChainId) *listener {
 	return &listener{
-		name:          name,
-		chainId:       id,
-		startBlock:    startBlock,
-		blockStore:    bs,
-		conn:          conn,
+		name:       name,
+		chainId:    id,
+		startBlock: startBlock,
+		blockStore: bs,
+		conn:       conn,
+		//multiSignTxHandler: make(map[eventName]eventHandler),
 		depositNonce:  make(map[DepositTarget][]DepositNonce, 500),
 		log:           log,
 		stop:          stop,
@@ -100,12 +103,19 @@ var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
 // a block will be retried up to BlockRetryLimit times before returning with an error.
 func (l *listener) pollBlocks() error {
 	var currentBlock = l.startBlock
+
+	//var count = 0
 	for {
 		select {
 		case <-l.stop:
 			return errors.New("terminated")
 		default:
-			// Get finalized block hash
+			//fmt.Printf("Now deal with Block %d\n", currentBlock)
+			/// Initialize the metadata
+			/// Subscribe to system events via storage
+			//fmt.Printf("current block is %v\n", currentBlock)
+
+			/// Get finalized block hash
 			finalizedHash, err := l.client.Api.RPC.Chain.GetFinalizedHead()
 			if err != nil {
 				l.log.Error("Failed to fetch finalized hash", "err", err)
@@ -165,6 +175,7 @@ func (l *listener) processBlock(hash types.Hash) error {
 		panic(err)
 	}
 
+	///
 	currentBlock := int64(block.Block.Header.Number)
 
 	resp, err := l.client.GetBlockByNumber(currentBlock)
@@ -172,60 +183,49 @@ func (l *listener) processBlock(hash types.Hash) error {
 		panic(err)
 	}
 
-	// Filter multiSign extrinsic from block
-	for i, e := range resp.Extrinsic {
+	for _, e := range resp.Extrinsic {
 		var msTx = MultiSigAsMulti{}
 		if e.Type == polkadot.AsMultiNew {
-			l.log.Info("Find a MultiSign New extrinsic in block #", currentBlock, "#")
+			l.log.Info("find a MultiSign New extrinsic in block #", currentBlock, "#")
+			///MultiSign New
 			l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
 			l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
-			msTx.Executed = false
-			msTx.Threshold = e.MultiSigAsMulti.Threshold
-			msTx.OtherSignatories = e.MultiSigAsMulti.OtherSignatories
-			msTx.MaybeTimePoint = e.MultiSigAsMulti.MaybeTimePoint
-			msTx.DestAddress = e.MultiSigAsMulti.DestAddress
-			msTx.DestAmount = e.MultiSigAsMulti.DestAmount
-			msTx.StoreCall = e.MultiSigAsMulti.StoreCall
-			msTx.MaxWeight = e.MultiSigAsMulti.MaxWeight
-			msTx.OriginMsTx = l.msTxStatistics.CurrentTx
+			msTx = MultiSigAsMulti{
+				Executed:         false,
+				Threshold:        e.MultiSigAsMulti.Threshold,
+				OtherSignatories: e.MultiSigAsMulti.OtherSignatories,
+				MaybeTimePoint:   e.MultiSigAsMulti.MaybeTimePoint,
+				DestAddress:      e.MultiSigAsMulti.DestAddress,
+				DestAmount:       e.MultiSigAsMulti.DestAmount,
+				StoreCall:        e.MultiSigAsMulti.StoreCall,
+				MaxWeight:        e.MultiSigAsMulti.MaxWeight,
+				OriginMsTx:       l.msTxStatistics.CurrentTx,
+			}
 
 			l.msTxAsMulti[l.msTxStatistics.CurrentTx] = msTx
 			l.msTxStatistics.TotalCount++
 		}
-
 		if e.Type == polkadot.AsMultiApprove {
-			l.log.Info("Find a MultiSign Approve extrinsic in block #", currentBlock, "#")
+			l.log.Info("find a MultiSign Approve extrinsic in block #", currentBlock, "#")
+			///MultiSign Approve
 		}
-
 		if e.Type == polkadot.AsMultiExecuted {
-			l.log.Info("Find a MultiSign Executed extrinsic in block #", currentBlock, "#")
+			l.log.Info("find a MultiSign Executed extrinsic in block #", currentBlock, "#")
+			/////MultiSign Executed
 			l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
 			l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
-			msTx.Executed = false
-			msTx.Threshold = e.MultiSigAsMulti.Threshold
-			msTx.OtherSignatories = e.MultiSigAsMulti.OtherSignatories
-			msTx.MaybeTimePoint = e.MultiSigAsMulti.MaybeTimePoint
-			msTx.DestAddress = e.MultiSigAsMulti.DestAddress
-			msTx.DestAmount = e.MultiSigAsMulti.DestAmount
-			msTx.StoreCall = e.MultiSigAsMulti.StoreCall
-			msTx.MaxWeight = e.MultiSigAsMulti.MaxWeight
-
-			//  Search a multi-signed transaction in the record, and marks it's executed status
-			for k, ms := range l.msTxAsMulti {
-				if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == msTx.DestAmount {
-					l.log.Info("Transactions executing...", "DestAddress", msTx.DestAddress, "Amount", msTx.DestAmount, "BlockNumber", ms.OriginMsTx.BlockNumber)
-
-					exeMsTx := l.msTxAsMulti[k]
-					exeMsTx.Executed = true
-					l.msTxAsMulti[k] = exeMsTx
-				}
+			msTx = MultiSigAsMulti{
+				DestAddress: e.MultiSigAsMulti.DestAddress,
+				DestAmount:  e.MultiSigAsMulti.DestAmount,
 			}
-			l.msTxStatistics.TotalCount++
+			/// Find An existing multi-signed transaction in the record, and marks for executed status
+			l.markExecution(msTx)
 		}
-		// UtilityBatch includes transferring to multiSig address and remarking with platon address
 		if e.Type == polkadot.UtilityBatch {
-			// Construct message
-			l.log.Info("Find a MultiSign Batch Extrinsic!", "CurrentBlock", currentBlock)
+			fmt.Printf("find a MultiSign Batch extrinsic in block %v\n", currentBlock)
+			/// 1. derive Extrinsic of Block
+
+			/// 2. validate and get essential parameters of message
 			amount, err := strconv.ParseInt(e.Amount, 10, 64)
 			if err != nil {
 				return err
@@ -234,8 +234,8 @@ func (l *listener) processBlock(hash types.Hash) error {
 			depositNonceA := strconv.FormatInt(currentBlock, 10)
 			depositNonceB := strconv.FormatInt(int64(e.ExtrinsicIndex), 10)
 
-			deposit := depositNonceA + depositNonceB
-			depositNonce, _ := strconv.ParseInt(deposit, 10, 64)
+			/// 3. construct parameters of message
+			depositNonce, _ := strconv.ParseInt(depositNonceA+depositNonceB, 10, 64)
 
 			m := msg.NewFungibleTransfer(
 				l.chainId,
@@ -245,13 +245,12 @@ func (l *listener) processBlock(hash types.Hash) error {
 				l.resourceId,
 				recipient,
 			)
-			l.log.Info("Ready to send PDOT...", "Amount", amount, "Recipient", recipient)
+			fmt.Printf("ready to send %d PDOT to %s\n", amount, recipient)
 			l.submitMessage(m, err)
 			if err != nil {
-				l.log.Error("submit Message to Alaya meet a err: ", "Error", err)
+				fmt.Printf("submit Message to Alaya meet a err: %v\n", err)
 				return err
 			}
-			l.log.Info("finish the MultiSignTransfer in block", "TxNumber", i, "CurrentBlock", currentBlock)
 		}
 	}
 	return nil
@@ -269,12 +268,14 @@ func (l *listener) submitMessage(m msg.Message, err error) {
 		log15.Error("failed to process event", "err", err)
 	}
 }
-func (l *listener) getDepositNonceIndex(depositTarget DepositTarget, nonce msg.Nonce) int {
-	for index, dn := range l.depositNonce[depositTarget] {
-		if dn.Nonce == nonce {
-			return index
+
+func (l *listener) markExecution(msTx MultiSigAsMulti) {
+	for k, ms := range l.msTxAsMulti {
+		if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == msTx.DestAmount {
+			fmt.Printf("ExecuteTx #%d, addr = %v, amount = %v\n", ms.OriginMsTx.BlockNumber, msTx.DestAddress, msTx.DestAmount)
+			exeMsTx := l.msTxAsMulti[k]
+			exeMsTx.Executed = true
+			l.msTxAsMulti[k] = exeMsTx
 		}
 	}
-	l.log.Warn("Not A exist MultiSignTraction, depositNonce not found!")
-	return -1
 }
