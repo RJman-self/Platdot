@@ -14,8 +14,9 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/rjman-self/Platdot/config"
 	"math/big"
+	"os"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -91,7 +92,10 @@ func (c *Connection) newTransactOpts(value, gasLimit, gasPrice *big.Int) (*bind.
 		return nil, 0, err
 	}
 
-	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(config.ChainId))
+	id := os.Getenv("Alaya_ChainId")
+	chainId, _ := strconv.Atoi(id)
+
+	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(int64(chainId)))
 	if err != nil {
 		return nil, 0, err
 	}

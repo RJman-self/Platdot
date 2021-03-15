@@ -19,8 +19,6 @@ import (
 const DefaultConfigPath = "./config.json"
 const DefaultKeystorePath = "./keystore"
 const DefaultBlockTimeout = int64(180) // 3 minutes
-//const Prefix = "atx"
-const ChainId = 222
 
 type Config struct {
 	Chains       []RawChainConfig `json:"chains"`

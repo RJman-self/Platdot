@@ -25,6 +25,8 @@ import (
 	"github.com/ChainSafe/chainbridge-utils/core"
 	"github.com/ChainSafe/chainbridge-utils/crypto/secp256k1"
 	"github.com/ChainSafe/chainbridge-utils/keystore"
+	"os"
+	"strconv"
 
 	//"github.com/rjman-self/Platdot/config"
 	"math/big"
@@ -79,6 +81,11 @@ func setupBlockstore(cfg *Config, kp *secp256k1.Keypair) (*blockstore.Blockstore
 
 func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics) (*Chain, error) {
 	cfg, err := parseChainConfig(chainCfg)
+	if err != nil {
+		return nil, err
+	}
+	// set alaya chainid
+	err = os.Setenv("Alaya_ChainId", strconv.Itoa(int(cfg.id)))
 	if err != nil {
 		return nil, err
 	}
