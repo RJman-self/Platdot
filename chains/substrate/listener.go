@@ -57,7 +57,7 @@ func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint6
 		startBlock: startBlock,
 		blockStore: bs,
 		conn:       conn,
-		//subscriptions: make(map[eventName]eventHandler),
+		//multiSignTxHandler: make(map[eventName]eventHandler),
 		depositNonce:  make(map[DepositTarget][]DepositNonce, 500),
 		log:           log,
 		stop:          stop,
@@ -170,12 +170,12 @@ func (l *listener) pollBlocks() error {
 }
 
 func (l *listener) processBlock(hash types.Hash) error {
-	//fmt.Printf("block hash is %v\n", hash)
 	block, err := l.client.Api.RPC.Chain.GetBlock(hash)
 	if err != nil {
 		panic(err)
 	}
 
+	///
 	currentBlock := int64(block.Block.Header.Number)
 
 	resp, err := l.client.GetBlockByNumber(currentBlock)
@@ -183,34 +183,25 @@ func (l *listener) processBlock(hash types.Hash) error {
 		panic(err)
 	}
 
-	for i, e := range resp.Extrinsic {
+	for _, e := range resp.Extrinsic {
 		var msTx = MultiSigAsMulti{}
 		if e.Type == polkadot.AsMultiNew {
 			l.log.Info("find a MultiSign New extrinsic in block #", currentBlock, "#")
 			///MultiSign New
 			l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
 			l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
-			msTx.Executed = false
-			msTx.Threshold = e.MultiSigAsMulti.Threshold
-			msTx.OtherSignatories = e.MultiSigAsMulti.OtherSignatories
-			msTx.MaybeTimePoint = e.MultiSigAsMulti.MaybeTimePoint
-			msTx.DestAddress = e.MultiSigAsMulti.DestAddress
-			msTx.DestAmount = e.MultiSigAsMulti.DestAmount
-			msTx.StoreCall = e.MultiSigAsMulti.StoreCall
-			msTx.MaxWeight = e.MultiSigAsMulti.MaxWeight
-			msTx.OriginMsTx = l.msTxStatistics.CurrentTx
+			msTx = MultiSigAsMulti{
+				Executed:         false,
+				Threshold:        e.MultiSigAsMulti.Threshold,
+				OtherSignatories: e.MultiSigAsMulti.OtherSignatories,
+				MaybeTimePoint:   e.MultiSigAsMulti.MaybeTimePoint,
+				DestAddress:      e.MultiSigAsMulti.DestAddress,
+				DestAmount:       e.MultiSigAsMulti.DestAmount,
+				StoreCall:        e.MultiSigAsMulti.StoreCall,
+				MaxWeight:        e.MultiSigAsMulti.MaxWeight,
+				OriginMsTx:       l.msTxStatistics.CurrentTx,
+			}
 
-			//depositTarget := DepositTarget{
-			//	DestAddress: e.MultiSigAsMulti.DestAddress,
-			//	DestAmount:  e.MultiSigAsMulti.DestAmount,
-			//}
-			//for _, nc := range l.depositNonce[depositTarget] {
-			//	if nc.OriginMsTx.BlockNumber == 0 {
-			//		msTx.DepositNonce = nc.Nonce
-			//		nc.OriginMsTx.BlockNumber = l.msTxStatistics.CurrentTx.BlockNumber
-			//		nc.OriginMsTx.MultiSignTxId = l.msTxStatistics.CurrentTx.MultiSignTxId
-			//	}
-			//}
 			l.msTxAsMulti[l.msTxStatistics.CurrentTx] = msTx
 			l.msTxStatistics.TotalCount++
 		}
@@ -223,46 +214,18 @@ func (l *listener) processBlock(hash types.Hash) error {
 			/////MultiSign Executed
 			l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
 			l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
-			msTx.Executed = false
-			msTx.Threshold = e.MultiSigAsMulti.Threshold
-			msTx.OtherSignatories = e.MultiSigAsMulti.OtherSignatories
-			msTx.MaybeTimePoint = e.MultiSigAsMulti.MaybeTimePoint
-			msTx.DestAddress = e.MultiSigAsMulti.DestAddress
-			msTx.DestAmount = e.MultiSigAsMulti.DestAmount
-			msTx.StoreCall = e.MultiSigAsMulti.StoreCall
-			msTx.MaxWeight = e.MultiSigAsMulti.MaxWeight
-			//msTxAsMulti.OriginMsTx = l.msTxStatistics.CurrentTx
-			///Find An existing multi-signed transaction in the record, and marks for executed status
-			for k, ms := range l.msTxAsMulti {
-				if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == msTx.DestAmount {
-					fmt.Printf("ExecuteTx addr = %v, amount = %v\n", msTx.DestAddress, msTx.DestAmount)
-					fmt.Printf("Execute #%d\n", ms.OriginMsTx.BlockNumber)
-
-					exeMsTx := l.msTxAsMulti[k]
-					exeMsTx.Executed = true
-					l.msTxAsMulti[k] = exeMsTx
-					//depositTarget := DepositTarget{
-					//	DestAddress: ms.DestAddress,
-					//	DestAmount:  ms.DestAmount,
-					//}
-					//fmt.Printf("Executed: deposit Target is {destAddr: %s, destAmount: %s}\n", depositTarget.DestAddress, depositTarget.DestAmount)
-					//var nonceIndex int
-					//for i, dn := range l.depositNonce[depositTarget] {
-					//	if !dn.Status {
-					//		dn.Status = true
-					//		nonceIndex = i
-					//	}
-					//}
-					//fmt.Printf("extrinsic of depositNonce %d has been executed\n", l.depositNonce[depositTarget][nonceIndex])
-				}
+			msTx = MultiSigAsMulti{
+				DestAddress: e.MultiSigAsMulti.DestAddress,
+				DestAmount:  e.MultiSigAsMulti.DestAmount,
 			}
-			l.msTxStatistics.TotalCount++
+			/// Find An existing multi-signed transaction in the record, and marks for executed status
+			l.markExecution(msTx)
 		}
 		if e.Type == polkadot.UtilityBatch {
 			fmt.Printf("find a MultiSign Batch extrinsic in block %v\n", currentBlock)
 			/// 1. derive Extrinsic of Block
-			/// 2. validate and get essential parameters of message
 
+			/// 2. validate and get essential parameters of message
 			amount, err := strconv.ParseInt(e.Amount, 10, 64)
 			if err != nil {
 				return err
@@ -272,8 +235,7 @@ func (l *listener) processBlock(hash types.Hash) error {
 			depositNonceB := strconv.FormatInt(int64(e.ExtrinsicIndex), 10)
 
 			/// 3. construct parameters of message
-			deposit := depositNonceA + depositNonceB
-			depositNonce, _ := strconv.ParseInt(deposit, 10, 64)
+			depositNonce, _ := strconv.ParseInt(depositNonceA+depositNonceB, 10, 64)
 
 			m := msg.NewFungibleTransfer(
 				l.chainId,
@@ -289,7 +251,6 @@ func (l *listener) processBlock(hash types.Hash) error {
 				fmt.Printf("submit Message to Alaya meet a err: %v\n", err)
 				return err
 			}
-			fmt.Printf("<---------------------- finish the No.%d MultiSignTransfer in block %v\n", i, currentBlock)
 		}
 	}
 	return nil
@@ -307,12 +268,14 @@ func (l *listener) submitMessage(m msg.Message, err error) {
 		log15.Error("failed to process event", "err", err)
 	}
 }
-func (l *listener) getDepositNonceIndex(depositTarget DepositTarget, nonce msg.Nonce) int {
-	for index, dn := range l.depositNonce[depositTarget] {
-		if dn.Nonce == nonce {
-			return index
+
+func (l *listener) markExecution(msTx MultiSigAsMulti) {
+	for k, ms := range l.msTxAsMulti {
+		if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == msTx.DestAmount {
+			fmt.Printf("ExecuteTx #%d, addr = %v, amount = %v\n", ms.OriginMsTx.BlockNumber, msTx.DestAddress, msTx.DestAmount)
+			exeMsTx := l.msTxAsMulti[k]
+			exeMsTx.Executed = true
+			l.msTxAsMulti[k] = exeMsTx
 		}
 	}
-	fmt.Printf("ERROR: Not A exist MultiSignTraction, depositNonce not found\n")
-	return -1
 }
