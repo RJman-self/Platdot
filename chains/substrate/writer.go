@@ -82,6 +82,8 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 				}
 				break
 			}
+			///
+			time.Sleep(time.Millisecond * 500)
 		}
 	}()
 	return true
@@ -127,7 +129,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 	for {
 		round := w.getRound()
 		if round.Uint64() == (w.currentRelayer*Mod - 1) {
-			fmt.Printf("Round #%d , relayer to send a MultiSignTx, depositNonce #%d\n", round.Uint64(), m.DepositNonce)
+			//fmt.Printf("Round #%d , relayer to send a MultiSignTx, depositNonce #%d\n", round.Uint64(), m.DepositNonce)
 			// Try to find a exist MultiSignTx
 			var maybeTimePoint interface{}
 			maxWeight := types.Weight(0)
@@ -167,15 +169,17 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 						Index:  types.U32(ms.OriginMsTx.MultiSignTxId),
 					}
 					maxWeight = types.Weight(w.maxWeight)
-					w.log.Info("Find a matched MultiSign Tx!", "TimePoint", maybeTimePoint)
+					w.log.Info("Find a matched MultiSign Tx!",
+						"Block", value, "Index", types.U32(ms.OriginMsTx.MultiSignTxId), "depositNonce", m.DepositNonce)
 					break
 				} else {
 					maybeTimePoint = []byte{}
-					continue
+					w.log.Info("Try to make a New MultiSign Tx!", "depositNonce", m.DepositNonce)
 				}
 			}
 			if len(w.listener.msTxAsMulti) == 0 {
 				maybeTimePoint = []byte{}
+				w.log.Info("Try to make a New MultiSign Tx!", "depositNonce", m.DepositNonce)
 			}
 
 			mc, err := types.NewCall(meta, mulMethod, threshold, w.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
@@ -185,6 +189,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 			///END: Create a call of MultiSignTransfer
 
 			///BEGIN: Submit a MultiSignExtrinsic to Polkadot
+
 			w.submitTx(mc)
 
 			return false, MultiSignTx{
@@ -195,7 +200,6 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 
 			///Round over, wait a RoundInterval
 		}
-		time.Sleep(RoundInterval)
 	}
 }
 

@@ -1,0 +1,36 @@
+{
+  "chains": [
+    {
+      "name": "alaya",
+      "type": "ethereum",
+      "id": "222",
+      "endpoint": "http://localhost:6789",
+      "from": "atx1sy2tvmghdv47hwz89yu9wz2y29nd0frr0578e3",
+      "opts": {
+        "bridge": "atx1762m2ryuvnnrk3d9q6gfy6whk29n59xu34typ5",
+        "erc20Handler": "atx1t3zvgf73mmhzax24epgv02vqznzw24a5m78cnz",
+        "http": "true",
+        "prefix": "atx"
+      }
+    },
+    {
+      "name": "polkadot",
+      "type": "substrate",
+      "id": "1",
+      "endpoint": "wss://westend-rpc.polkadot.io:443",
+      "from": "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm",
+      "latestBlock": "true",
+      "opts": {
+        "MultiSignAddress": "0x68b8b982574a76f4385a7b3cd1673ab468266d19a5ded9c3413da7f76ffd9f06",
+        "TotalRelayer": "3",
+        "CurrentRelayerNumber": "1",
+        "MultiSignThreshold": "2",
+        "OtherRelayer1": "0x0a19674301c56a1721feb98dbe93cfab911a8c1bed127f598ef93b374bcc6e71",
+        "OtherRelayer2": "0x0e9d1068fb37c0a202c1564780289bb9a9dcfea31ff98f1c4d0e8b053875d120",
+        "ResourceId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+        "MaxWeight": "22698000000",
+        "DestId": "222"
+      }
+    }
+  ]
+}
