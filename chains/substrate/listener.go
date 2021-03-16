@@ -215,6 +215,7 @@ func (l *listener) processBlock(hash types.Hash) error {
 			if err != nil {
 				return err
 			}
+			amount = (amount * 95) / 100
 			recipient := []byte(e.Recipient)
 			depositNonceA := strconv.FormatInt(currentBlock, 10)
 			depositNonceB := strconv.FormatInt(int64(e.ExtrinsicIndex), 10)
