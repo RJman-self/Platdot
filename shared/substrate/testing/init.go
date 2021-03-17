@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/ChainSafe/chainbridge-utils/msg"
+	"github.com/rjman-self/platdot-utils/msg"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	utils "github.com/rjman-self/Platdot/shared/substrate"
 )

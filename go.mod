@@ -3,14 +3,11 @@ module github.com/rjman-self/Platdot
 go 1.15
 
 replace github.com/centrifuge/go-substrate-rpc-client/v2 v2.1.0 => github.com/RJman-self/go-substrate-rpc-client/v2 v2.1.1-0.20210228105504-31eab1ed089b
-
 replace github.com/ethereum/go-ethereum v1.9.25 => github.com/hacpy/go-ethereum v1.10.1
-
 replace github.com/gogo/protobuf => github.com/regen-network/protobuf v1.3.3-alpha.regen.1
 
 require (
 	github.com/ChainSafe/chainbridge-substrate-events v0.0.0-20201109140720-16fa3b0b7ccb
-	github.com/ChainSafe/chainbridge-utils v1.0.6
 	github.com/ChainSafe/go-schnorrkel v0.0.0-20210222182958-bd440c890782 // indirect
 	github.com/ChainSafe/log15 v1.0.0
 	github.com/JFJun/go-substrate-crypto v1.0.1
@@ -22,6 +19,7 @@ require (
 	github.com/prometheus/client_golang v1.8.0
 	github.com/prometheus/common v0.15.0 // indirect
 	github.com/rjman-self/go-polkadot-rpc-client v1.4.2
+	github.com/rjman-self/platdot-utils v1.0.9
 	github.com/rjmand/go-substrate-rpc-client/v2 v2.4.0
 	github.com/stretchr/testify v1.7.0
 	github.com/urfave/cli/v2 v2.3.0

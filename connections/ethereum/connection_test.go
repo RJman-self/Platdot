@@ -8,11 +8,11 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ChainSafe/chainbridge-utils/keystore"
+	"github.com/rjman-self/platdot-utils/keystore"
 	"github.com/ChainSafe/log15"
 	ethcmn "github.com/ethereum/go-ethereum/common"
-	ethutils "github.com/rjman-self/Platdot/shared/ethereum"
-	ethtest "github.com/rjman-self/Platdot/shared/ethereum/testing"
+	ethutils "github.com/rjman-self/Platdot/shared/platdot"
+	ethtest "github.com/rjman-self/Platdot/shared/platdot/testing"
 )
 
 var TestEndpoint = "ws://localhost:8545"

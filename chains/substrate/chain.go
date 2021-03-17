@@ -25,12 +25,12 @@ package substrate
 
 import (
 	"fmt"
-	"github.com/ChainSafe/chainbridge-utils/blockstore"
-	"github.com/ChainSafe/chainbridge-utils/core"
-	"github.com/ChainSafe/chainbridge-utils/crypto/sr25519"
-	"github.com/ChainSafe/chainbridge-utils/keystore"
-	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
-	"github.com/ChainSafe/chainbridge-utils/msg"
+	"github.com/rjman-self/platdot-utils/blockstore"
+	"github.com/rjman-self/platdot-utils/core"
+	"github.com/rjman-self/platdot-utils/crypto/sr25519"
+	"github.com/rjman-self/platdot-utils/keystore"
+	metrics "github.com/rjman-self/platdot-utils/metrics/types"
+	"github.com/rjman-self/platdot-utils/msg"
 	"github.com/ChainSafe/log15"
 	"github.com/JFJun/go-substrate-crypto/ss58"
 	signature2 "github.com/centrifuge/go-substrate-rpc-client/v2/signature"

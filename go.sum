@@ -610,6 +610,9 @@ github.com/rjeczalik/notify v0.9.1 h1:CLCKso/QK1snAlnhNR/CNvNiFU2saUtjV0bx3EwNeC
 github.com/rjeczalik/notify v0.9.1/go.mod h1:rKwnCoCGeuQnwBtTSPL9Dad03Vh2n40ePRrjvIXnJho=
 github.com/rjman-self/go-polkadot-rpc-client v1.4.2 h1:ehO4UGxv2Urebzu1qovYmKOU/QZA3L6j236htqw6gxo=
 github.com/rjman-self/go-polkadot-rpc-client v1.4.2/go.mod h1:kUiT/mKh2V1euE14sF3zCthwDfmGa7h7Mnz8FGgaMJY=
+github.com/rjman-self/platdot-utils v1.0.9 h1:ltmkkE/u+kcgxXtxeTj4ycw8VAG97gDjiZNQ6dzs4fA=
+github.com/rjman-self/platdot-utils v1.0.9/go.mod h1:7Xi94rlxQko0FJ0PAxywzxqVgQo86RJ9UO4X4rqmuUQ=
+github.com/rjmand/go-substrate-rpc-client/v2 v2.1.1-0.20210228120507-d15559aaddb1/go.mod h1:opE+pB/SAyI9m2Y95pkgvtio/cf9LXq2lpW4aOQck9A=
 github.com/rjmand/go-substrate-rpc-client/v2 v2.4.0 h1:Qw0UKycICMtX49Hyzejk4Dtq4v9kO2ZuDKTWsz+tW4Y=
 github.com/rjmand/go-substrate-rpc-client/v2 v2.4.0/go.mod h1:WFbPfrrU/pDYLUfNBEPFlkeYVQ4+/8au8UKt6WshiyI=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=

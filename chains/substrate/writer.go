@@ -6,9 +6,9 @@ package substrate
 import (
 	"errors"
 	"fmt"
-	"github.com/ChainSafe/chainbridge-utils/core"
-	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
-	"github.com/ChainSafe/chainbridge-utils/msg"
+	"github.com/rjman-self/platdot-utils/core"
+	metrics "github.com/rjman-self/platdot-utils/metrics/types"
+	"github.com/rjman-self/platdot-utils/msg"
 	"github.com/ChainSafe/log15"
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/rpc/author"

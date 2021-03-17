@@ -9,8 +9,8 @@ package substrate
 //	"os"
 //	"testing"
 //
-//	"github.com/ChainSafe/chainbridge-utils/keystore"
-//	"github.com/ChainSafe/chainbridge-utils/msg"
+//	"github.com/ChainSafe/platdot-utils/keystore"
+//	"github.com/ChainSafe/platdot-utils/msg"
 //	"github.com/ChainSafe/log15"
 //	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 //	"github.com/ethereum/go-ethereum/common/hexutil"

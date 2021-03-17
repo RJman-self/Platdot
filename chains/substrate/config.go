@@ -4,13 +4,13 @@
 package substrate
 
 import (
-	"github.com/ChainSafe/chainbridge-utils/msg"
+	"github.com/rjman-self/platdot-utils/msg"
 	log "github.com/ChainSafe/log15"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	"github.com/ethereum/go-ethereum/common"
 	"strconv"
 
-	"github.com/ChainSafe/chainbridge-utils/core"
+	"github.com/rjman-self/platdot-utils/core"
 )
 
 func parseStartBlock(cfg *core.ChainConfig) uint64 {

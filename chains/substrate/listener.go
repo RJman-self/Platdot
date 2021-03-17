@@ -15,9 +15,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ChainSafe/chainbridge-utils/blockstore"
-	metrics "github.com/ChainSafe/chainbridge-utils/metrics/types"
-	"github.com/ChainSafe/chainbridge-utils/msg"
+	"github.com/rjman-self/platdot-utils/blockstore"
+	metrics "github.com/rjman-self/platdot-utils/metrics/types"
+	"github.com/rjman-self/platdot-utils/msg"
 	"github.com/ChainSafe/log15"
 	"github.com/rjman-self/Platdot/chains"
 )

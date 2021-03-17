@@ -1,7 +1,7 @@
 package substrate
 
 import (
-	"github.com/ChainSafe/chainbridge-utils/msg"
+	"github.com/rjman-self/platdot-utils/msg"
 	"github.com/rjman-self/go-polkadot-rpc-client/expand"
 )
 
