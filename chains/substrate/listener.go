@@ -15,11 +15,11 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ChainSafe/log15"
+	"github.com/rjman-self/Platdot/chains"
 	"github.com/rjman-self/platdot-utils/blockstore"
 	metrics "github.com/rjman-self/platdot-utils/metrics/types"
 	"github.com/rjman-self/platdot-utils/msg"
-	"github.com/ChainSafe/log15"
-	"github.com/rjman-self/Platdot/chains"
 )
 
 type listener struct {
@@ -175,7 +175,7 @@ func (l *listener) processBlock(hash types.Hash) error {
 	for _, e := range resp.Extrinsic {
 		var msTx = MultiSigAsMulti{}
 		if e.Type == polkadot.AsMultiNew {
-			l.log.Info("Find a MultiSign New extrinsic in block", "Block", currentBlock)
+			l.log.Info("Find a MultiSign New extrinsic", "Block", currentBlock)
 			// MultiSign New
 			l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
 			l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
@@ -195,10 +195,10 @@ func (l *listener) processBlock(hash types.Hash) error {
 			l.msTxStatistics.TotalCount++
 		}
 		if e.Type == polkadot.AsMultiApprove {
-			l.log.Info("Find a MultiSign Approve extrinsic in block #", currentBlock, "#")
+			l.log.Info("Find a MultiSign Approve extrinsic", "Block", currentBlock)
 		}
 		if e.Type == polkadot.AsMultiExecuted {
-			l.log.Info("Find a MultiSign Executed extrinsic in block #", currentBlock, "#")
+			l.log.Info("Find a MultiSign Executed extrinsic", "Block", currentBlock)
 			l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
 			l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
 			msTx = MultiSigAsMulti{
@@ -209,7 +209,7 @@ func (l *listener) processBlock(hash types.Hash) error {
 			l.markExecution(msTx)
 		}
 		if e.Type == polkadot.UtilityBatch {
-			l.log.Info("Find a MultiSign Batch Extrinsic!", "CurrentBlock", currentBlock)
+			l.log.Info("Find a MultiSign Batch Extrinsic", "Block", currentBlock)
 			// Construct parameters of message
 			amount, err := strconv.ParseInt(e.Amount, 10, 64)
 			if err != nil {
