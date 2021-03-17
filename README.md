@@ -3,7 +3,7 @@
 
 ## Introduction
 
-​		Bscdot is a cross-chain project based on ChainBridge developed by the ChainX team. In order to achieve two-way cross-chain, chainbridge needs to deploy a pallet on the Substrate chain that is equivalent to the smart contract in the EVM, so it cannot be deployed on polkadot. Our team has improved this. Through Bscdot, it can be passed without pallet. The multi-signature module realizes a completely decentralized token transfer across Polkadot, transferring Dot on Polkadot to Binance Smart Chain, and it can also be applied to kusama, chainX and other networks that have huge value but cannot deploy pallets on their own.
+​	Platdot is a cross-chain project based on ChainBridge developed by the ChainX team. In order to achieve two-way cross-chain, chainbridge needs to deploy a pallet on the Substrate chain that is equivalent to the smart contract in the EVM, so it cannot be deployed on polkadot. Our team has improved this. Through Platdot, it can be passed without pallet. The multi-signature module realizes a completely decentralized token transfer across Polkadot, transferring Dot on Polkadot to PlatON, and it can also be applied to kusama, chainX and other networks that have huge value but cannot deploy pallets on their own.
 
 ## Demo Video
 
@@ -28,13 +28,14 @@ https://cdn.jsdelivr.net/gh/rjman-self/resources@master/images/bscdot-1.png
       }
 ```
 
-## Running Locally
+## Running Locally (Dev)
 
 ### Prerequisites
 
 - platdot binary
 - solidity contract
 - Polkadot JS Portal
+
 
 ### Deploy Contracts
 
@@ -106,6 +107,51 @@ Summary
 ```
 
 ### Initial Contract
+
+#### Init Contract Instances
+```js
+bridgeAddress = "atx1762m2ryuvnnrk3d9q6gfy6whk29n59xu34typ5";
+handlerAddress = "atx1t3zvgf73mmhzax24epgv02vqznzw24a5m78cnz";
+erc20Address = "atx1lfhrcc6xectcfe850kf83rcntlw0ha7wck9qjz";
+
+// bridge_abi in ./build/Bridge.json
+bridge_contract = new web3.platon.Contract(bridge_abi);
+bridge_contract.options.address = bridgeAddress;
+bridge_contract.options.from = deployerAddress;
+
+// erc20_abi in ./build/ERC20PresetMinterPauser.json
+erc20_contract = new web3.platon.Contract(erc20_abi);
+erc20_contract.options.address = erc20Address;
+erc20_contract.options.from = deployerAddress;
+```
+
+#### Set Resource
+```js
+// resourceId looks like '0x0000000000000000000000000000000000000000000000000000000000000000',just same length
+bridge_contract.methods.adminSetResource(handlerAddress, resourceID, erc20Address).send({from: deployerAddress})
+```
+
+#### Set Burnable
+```js
+bridge_contract.methods.adminSetBurnable(handlerAddress, erc20Address).send({from: deployerAddress})
+```
+
+#### Add Mint
+```js
+MINTER_ROLE = "0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6"
+erc20_contract.methods.grantRole(MINTER_ROLE, handlerAddress).send({from: deployerAddress})
+```
+
+#### Mint
+```js
+erc20_contract.methods.mint(recipientAddress, amount).send({from: deployerAddress})
+```
+
+#### Approve
+```js
+// Allow the handler to process your PDOT
+erc20_contract.methods.approve(handlerAddress, amount).send({from: yourAddress})
+```
 
 
 ### Running A Relayer
