@@ -1,5 +1,5 @@
 # Platdot
-![img](https://github.com/RJman-self/Platdot/blob/master/Platdot.svg)
+![Platdot](https://github.com/RJman-self/Platdot/blob/master/Platdot.png)
 
 ## Introduction
 
