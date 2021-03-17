@@ -6,15 +6,15 @@ package substrate
 import (
 	"errors"
 	"fmt"
-	"github.com/rjman-self/platdot-utils/core"
-	metrics "github.com/rjman-self/platdot-utils/metrics/types"
-	"github.com/rjman-self/platdot-utils/msg"
 	"github.com/ChainSafe/log15"
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/rpc/author"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	utils "github.com/rjman-self/Platdot/shared/substrate"
+	"github.com/rjman-self/platdot-utils/core"
+	metrics "github.com/rjman-self/platdot-utils/metrics/types"
+	"github.com/rjman-self/platdot-utils/msg"
 	"math/big"
 	"time"
 )
@@ -23,10 +23,21 @@ var _ core.Writer = &writer{}
 
 var TerminatedError = errors.New("terminated")
 
-var RoundInterval = time.Second * 2
-
+const RoundInterval = time.Second * 2
 const oneToken = 1000000
 const Mod = 1
+var NotExecuted = MultiSignTx{
+	BlockNumber:   -1,
+	MultiSignTxId: 0,
+}
+
+type Relayer struct {
+	kr                 signature.KeyringPair
+	otherSignatories   []types.AccountID
+	totalRelayers      uint64
+	multiSignThreshold uint16
+	currentRelayer     uint64
+}
 
 type writer struct {
 	conn               *Connection
@@ -35,12 +46,8 @@ type writer struct {
 	sysErr             chan<- error
 	metrics            *metrics.ChainMetrics
 	extendCall         bool // Extend extrinsic calls to substrate with ResourceID.Used for backward compatibility with example pallet.
-	kr                 signature.KeyringPair
-	otherSignatories   []types.AccountID
 	msApi              *gsrpc.SubstrateAPI
-	totalRelayers      uint64
-	currentRelayer     uint64
-	multiSignThreshold uint16
+	relayer			   Relayer
 	maxWeight          uint64
 }
 
@@ -60,12 +67,14 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 		sysErr:             sysErr,
 		metrics:            m,
 		extendCall:         extendCall,
-		kr:                 *krp,
-		otherSignatories:   otherRelayers,
 		msApi:              api,
-		totalRelayers:      total,
-		currentRelayer:     current,
-		multiSignThreshold: threshold,
+		relayer: 			Relayer{
+			kr:                 *krp,
+			otherSignatories:   otherRelayers,
+			totalRelayers: total,
+			multiSignThreshold: threshold,
+			currentRelayer:     current,
+		},
 		maxWeight:          weight,
 	}
 }
@@ -76,14 +85,13 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 		for {
 			isFinished, currentTx := w.redeemTx(m)
 			if isFinished {
-				w.log.Info("finish a redeemTx")
-				if currentTx.BlockNumber != -1 && currentTx.MultiSignTxId != 0 {
+				w.log.Info("finish a redeemTx", "DepositNonce", m.DepositNonce)
+				if currentTx.BlockNumber != NotExecuted.BlockNumber && currentTx.MultiSignTxId != NotExecuted.MultiSignTxId {
+					w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "Block", currentTx.BlockNumber)
 					delete(w.listener.msTxAsMulti, currentTx)
 				}
 				break
 			}
-			///
-			time.Sleep(time.Millisecond * 500)
 		}
 	}()
 	return true
@@ -121,14 +129,19 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 
 	// BEGIN: Create a call of MultiSignTransfer
 	mulMethod := string(utils.MultisigAsMulti)
-	var threshold = w.multiSignThreshold
+	var threshold = w.relayer.multiSignThreshold
 
 	// Get parameters of multiSignature
 	destAddress := string(m.Payload[1].([]byte))
 
+	defer func() {
+		/// Single thread send one time each round
+		time.Sleep(RoundInterval)
+	}()
+
 	for {
 		round := w.getRound()
-		if round.Uint64() == (w.currentRelayer*Mod - 1) {
+		if round.Uint64() == (w.relayer.currentRelayer*Mod - 1) {
 			//fmt.Printf("Round #%d , relayer to send a MultiSignTx, depositNonce #%d\n", round.Uint64(), m.DepositNonce)
 			// Try to find a exist MultiSignTx
 			var maybeTimePoint interface{}
@@ -136,69 +149,51 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 
 			// Traverse all of matched Tx, included New、Approve、Executed
 			for _, ms := range w.listener.msTxAsMulti {
-				// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
 				// Validate parameter
-				var isVote = true
 				if ms.DestAddress == destAddress[2:] && ms.DestAmount == bigAmt.String() {
-					if ms.Executed {
-						fmt.Printf("depositNonce %v done(Executed), block %d\n", m.DepositNonce, ms.OriginMsTx.BlockNumber)
-						w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "BlockNumber", ms.OriginMsTx.BlockNumber)
-						return true, ms.OriginMsTx
+					/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
+					finished, executed := w.isFinish(ms)
+					if finished {
+						return finished, executed
 					}
 
-					for _, signatory := range ms.OtherSignatories {
-						voter, _ := types.NewAddressFromHexAccountID(signatory)
-						relayer := types.NewAddressFromAccountID(w.kr.PublicKey)
-						if voter == relayer {
-							isVote = false
-						}
-					}
-					// For Each Tx of New、Approve、Executed，each relayer vote for one Tx
-					if isVote {
-						w.log.Info("relayer has vote, exit!")
-						return true, MultiSignTx{
-							BlockNumber:   -1,
-							MultiSignTxId: 0,
-						}
-					}
-					// Match the correct TimePoint
+					/// Match the correct TimePoint
 					height := types.U32(ms.OriginMsTx.BlockNumber)
-					value := types.NewOptionU32(height)
 					maybeTimePoint = TimePointSafe32{
-						Height: value,
+						Height: types.NewOptionU32(height),
 						Index:  types.U32(ms.OriginMsTx.MultiSignTxId),
 					}
 					maxWeight = types.Weight(w.maxWeight)
-					w.log.Info("Find a matched MultiSign Tx!",
-						"Block", value, "Index", types.U32(ms.OriginMsTx.MultiSignTxId), "depositNonce", m.DepositNonce)
 					break
 				} else {
 					maybeTimePoint = []byte{}
-					w.log.Info("Try to make a New MultiSign Tx!", "depositNonce", m.DepositNonce)
+
 				}
 			}
 			if len(w.listener.msTxAsMulti) == 0 {
 				maybeTimePoint = []byte{}
-				w.log.Info("Try to make a New MultiSign Tx!", "depositNonce", m.DepositNonce)
 			}
 
-			mc, err := types.NewCall(meta, mulMethod, threshold, w.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
+			if maxWeight == 0 {
+				w.log.Info("Try to make a New MultiSign Tx!", "depositNonce", m.DepositNonce)
+			} else {
+				_, height := maybeTimePoint.(TimePointSafe32).Height.Unwrap()
+				w.log.Info("Try to Approve a MultiSignTx!", "Block", height, "Index", maybeTimePoint.(TimePointSafe32).Index, "depositNonce", m.DepositNonce)
+			}
+
+			mc, err := types.NewCall(meta, mulMethod, threshold, w.relayer.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
 			if err != nil {
 				panic(err)
 			}
 			///END: Create a call of MultiSignTransfer
 
 			///BEGIN: Submit a MultiSignExtrinsic to Polkadot
-
 			w.submitTx(mc)
-
-			return false, MultiSignTx{
-				BlockNumber:   -1,
-				MultiSignTxId: 0,
-			}
+			return false, NotExecuted
 			///END: Submit a MultiSignExtrinsic to Polkadot
-
+		} else {
 			///Round over, wait a RoundInterval
+			time.Sleep(RoundInterval)
 		}
 	}
 }
@@ -220,7 +215,7 @@ func (w *writer) submitTx(c types.Call) {
 		panic(err)
 	}
 
-	key, err := types.CreateStorageKey(meta, "System", "Account", w.kr.PublicKey, nil)
+	key, err := types.CreateStorageKey(meta, "System", "Account", w.relayer.kr.PublicKey, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -249,7 +244,7 @@ func (w *writer) submitTx(c types.Call) {
 
 	// Create and Sign the MultiSign
 	ext := types.NewExtrinsic(c)
-	err = ext.MultiSign(w.kr, o)
+	err = ext.MultiSign(w.relayer.kr, o)
 	if err != nil {
 		panic(err)
 	}
@@ -272,8 +267,31 @@ func (w *writer) getRound() *big.Int {
 
 	height := big.NewInt(int64(finalizedHeader.Number))
 	round := big.NewInt(0)
-	round.Mod(height, big.NewInt(int64(w.totalRelayers*Mod))).Uint64()
+	round.Mod(height, big.NewInt(int64(w.relayer.totalRelayers*Mod))).Uint64()
 	return round
+}
+
+func (w *writer) isFinish(ms MultiSigAsMulti) (bool, MultiSignTx) {
+	/// check isExecuted
+	if ms.Executed {
+		return true, ms.OriginMsTx
+	}
+	var isVote = true
+
+	/// check isVoted
+	for _, signatory := range ms.OtherSignatories {
+		voter, _ := types.NewAddressFromHexAccountID(signatory)
+		relayer := types.NewAddressFromAccountID(w.relayer.kr.PublicKey)
+		if voter == relayer {
+			isVote = false
+		}
+	}
+	// For each Tx of New、Approve、Executed，relayer vote for one time
+	if isVote {
+		w.log.Info("relayer has vote, exit!", "Block", ms.OriginMsTx.BlockNumber, "Index", ms.OriginMsTx.MultiSignTxId)
+		return true, NotExecuted
+	}
+	return false, NotExecuted
 }
 
 func (w *writer) watchSubmission(sub *author.ExtrinsicStatusSubscription) error {

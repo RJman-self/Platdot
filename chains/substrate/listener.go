@@ -175,7 +175,7 @@ func (l *listener) processBlock(hash types.Hash) error {
 	for _, e := range resp.Extrinsic {
 		var msTx = MultiSigAsMulti{}
 		if e.Type == polkadot.AsMultiNew {
-			l.log.Info("Find a MultiSign New extrinsic in block #", currentBlock, "#")
+			l.log.Info("Find a MultiSign New extrinsic in block", "Block", currentBlock)
 			// MultiSign New
 			l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
 			l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
