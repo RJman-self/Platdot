@@ -28,7 +28,6 @@ type listener struct {
 	startBlock     uint64
 	blockStore     blockstore.Blockstorer
 	conn           *Connection
-	depositNonce   map[DepositTarget][]DepositNonce
 	router         chains.Router
 	log            log15.Logger
 	stop           <-chan int
@@ -55,7 +54,6 @@ func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint6
 		startBlock:    startBlock,
 		blockStore:    bs,
 		conn:          conn,
-		depositNonce:  make(map[DepositTarget][]DepositNonce, 500),
 		log:           log,
 		stop:          stop,
 		sysErr:        sysErr,

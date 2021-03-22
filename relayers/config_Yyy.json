@@ -7,10 +7,10 @@
       "endpoint": "http://localhost:6789",
       "from": "atx1tdk4rtlu3pv440r96hqn8s33et7kn257mfhtpf",
       "opts": {
-        "bridge": "atx1762m2ryuvnnrk3d9q6gfy6whk29n59xu34typ5",
-        "erc20Handler": "atx1t3zvgf73mmhzax24epgv02vqznzw24a5m78cnz",
+        "bridge": "atp1ed4mz9wawr7dnnznjx4uuu4uwdquc0wwn9uu96",
+        "erc20Handler": "atp13kpqglnd5xl699smjulk64v048ku7d50c8jt5p",
         "http": "true",
-        "prefix": "atx"
+        "prefix": "atp"
       }
     },
     {
