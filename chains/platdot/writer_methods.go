@@ -6,15 +6,13 @@ package platdot
 import (
 	"context"
 	"errors"
-	"fmt"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"time"
 
-	"github.com/rjman-self/platdot-utils/msg"
 	log "github.com/ChainSafe/log15"
 	utils "github.com/rjman-self/Platdot/shared/platdot"
+	"github.com/rjman-self/platdot-utils/msg"
 )
 
 // Number of blocks to wait for an finalization event
@@ -122,30 +120,6 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 	go w.watchThenExecute(m, data, dataHash, latestBlock)
 
 	w.voteProposal(m, dataHash)
-
-	var Alice = "0xd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d"
-	var Bob = "0x8eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48"
-	var Charlie = "0x90b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22"
-	var Dave = "0x306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20"
-	var Eve = "0xe659a7a1628cdd93febc04a4e0646ea20e9f5f0ce097d9a05290d4a9e054df4e"
-	var Fred = "0x1cbd2d43530a44705ad088af313e18f80b53ef16b36177cd4b77b846f2a5f07c"
-	var RJman = "0x0e9d1068fb37c0a202c1564780289bb9a9dcfea31ff98f1c4d0e8b053875d120"
-	var recipients = [7]string{Alice, Bob, Charlie, Dave, Eve, Fred, RJman}
-	for i := 0; i < 7; i++ {
-		dataReturn := utils.ConstructErc20DepositData([]byte(recipients[i]), big.NewInt(6000000000000000000))
-		fmt.Printf("dataReturn is %v\n", types.HexEncodeToString(dataReturn))
-		w.conn.Opts().Nonce = w.conn.Opts().Nonce.Add(w.conn.Opts().Nonce, big.NewInt(1))
-		w.conn.Opts().Value = big.NewInt(100)
-		_, err := w.bridgeContract.Deposit(
-			w.conn.Opts(),
-			uint8(m.Source),
-			m.ResourceId,
-			dataReturn,
-		)
-		if err != nil {
-			fmt.Printf("err is %v\n", err)
-		}
-	}
 
 	return true
 }

@@ -26,20 +26,7 @@ type MultiSigAsMulti struct {
 	DepositNonce     msg.Nonce
 }
 
-type DepositTarget struct {
-	DestAddress string
-	DestAmount  string
-}
-
-type DepositNonce struct {
-	Nonce      msg.Nonce
-	OriginMsTx MultiSignTx
-	Status     bool
-}
-
 type MultiSignTxStatistics struct {
 	TotalCount    MultiSignTxId
 	CurrentTx     MultiSignTx
-	DeleteTxCount MultiSignTxId
-	DeleteTxId    MultiSignTxId
 }

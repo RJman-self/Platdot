@@ -214,4 +214,3 @@ Run `make build` in bscdot directory to build bscdot. You can then start a relay
 ```
 
 ## Transfer in Polkadot.js.org
-
