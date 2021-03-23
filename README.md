@@ -1,32 +1,38 @@
 # Platdot
-![Platdot](https://github.com/RJman-self/Platdot/blob/master/Platdot.png)
 
-## Introduction
+[English]() | 简体中文
 
-​	Platdot is a cross-chain project based on ChainBridge developed by the ChainX team. In order to achieve two-way cross-chain, chainbridge needs to deploy a pallet on the Substrate chain that is equivalent to the smart contract in the EVM, so it cannot be deployed on polkadot. Our team has improved this. Through Platdot, it can be passed without pallet. The multi-signature module realizes a completely decentralized token transfer across Polkadot, transferring Dot on Polkadot to PlatON, and it can also be applied to kusama, chainX and other networks that have huge value but cannot deploy pallets on their own.
+![sad](https://img.shields.io/badge/build-passing-{右半部分颜色})![sad](https://img.shields.io/badge/test-passing-{右半部分颜色})
 
-## Demo Video
+![](https://cdn.jsdelivr.net/gh/rjman-self/resources/assets/Platdot.png)
 
-https://www.youtube.com/watch?v=vTMIlM2oaJc&feature=youtu.be
+Platdot is a cross-chain project based on [ChainBridge](https://github.com/ChainSafe/ChainBridge). In order to achieve two-way cross-chain, platdot needs to deploy a pallet on the Substrate chain that is equivalent to the smart contract in the EVM, but it cannot be deployed on polkadot. Our team has improved this. Through Platdot, it can be passed without pallet. The multi-signature module realizes a completely decentralized token transfer across Polkadot, transferring Dot on Polkadot to PlatON, and it can also be applied to kusama, chainX and other networks that have huge value but cannot deploy pallets on their own.
 
-## UI
+## Installation
 
-https://cdn.jsdelivr.net/gh/rjman-self/resources@master/images/bscdot-1.png
+### Dependencies
 
-![b-1](https://cdn.jsdelivr.net/gh/rjman-self/resources@master/images/bscdot-1.png)
++ Make sure the Golang environment is installed
 
-![2](https://cdn.jsdelivr.net/gh/rjman-self/resources@master/images/bscdot-2.png)
++ [Platdot-contract](): Deploy and configure smart contract in Alaya.
 
-## Contract address on testnet
+### Building
 
-```json
-"opts": {
-        "bridge": "atx1762m2ryuvnnrk3d9q6gfy6whk29n59xu34typ5",
-        "erc20Handler": "atx1t3zvgf73mmhzax24epgv02vqznzw24a5m78cnz",
-        "http": "true",
-        "prefix": "atx"
-      }
-```
+`git clone https://github.com/RJman-self/Platdot.git`
+
+`make build`: Builds `platdot` in `./build`.
+
+**or**
+
+`make install`: Uses `go install` to add `platdot` to your `GOBIN`.
+
+## Getting Start
+
+Documentations are now moved to GitHub Wiki.
+
+## License
+
+
 
 ## Running Locally (Dev)
 
@@ -35,7 +41,6 @@ https://cdn.jsdelivr.net/gh/rjman-self/resources@master/images/bscdot-1.png
 - platdot binary
 - solidity contract
 - Polkadot JS Portal
-
 
 ### Deploy Contracts
 

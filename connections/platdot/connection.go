@@ -1,7 +1,7 @@
 // Copyright 2020 ChainSafe Systems
 // SPDX-License-Identifier: LGPL-3.0-only
 
-package ethereum
+package platdot
 
 import (
 	"context"
@@ -91,7 +91,7 @@ func (c *Connection) newTransactOpts(value, gasLimit, gasPrice *big.Int) (*bind.
 		return nil, 0, err
 	}
 
-	id := os.Getenv("Alaya_ChainId")
+	id := os.Getenv("networkId")
 	chainId, _ := strconv.Atoi(id)
 
 	auth, err := bind.NewKeyedTransactorWithChainID(privateKey, big.NewInt(int64(chainId)))

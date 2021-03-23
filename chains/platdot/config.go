@@ -7,11 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"strconv"
 
-	"github.com/rjman-self/platdot-utils/core"
-	"github.com/rjman-self/platdot-utils/msg"
 	"github.com/ethereum/go-ethereum/common"
 	utils "github.com/rjman-self/Platdot/shared/platdot"
+	"github.com/rjman-self/platdot-utils/core"
+	"github.com/rjman-self/platdot-utils/msg"
 )
 
 const DefaultGasLimit = 6721975
@@ -32,6 +33,7 @@ var (
 	StartBlockOpt         = "startBlock"
 	BlockConfirmationsOpt = "blockConfirmations"
 	PrefixOpt             = "prefix"
+	NetWorkIdOpt          = "networkId"
 )
 
 // Config encapsulates all necessary parameters in ethereum compatible forms
@@ -43,6 +45,7 @@ type Config struct {
 	keystorePath           string      // Location of keyfiles
 	blockstorePath         string
 	prefix                 string
+	networkId              string 	   // Network Id
 	freshStart             bool // Disables loading from blockstore at start
 	bridgeContract         common.Address
 	erc20HandlerContract   common.Address
@@ -58,6 +61,8 @@ type Config struct {
 
 // parseChainConfig uses a core.ChainConfig to construct a corresponding Config
 func parseChainConfig(chainCfg *core.ChainConfig) (*Config, error) {
+	http, _ := strconv.ParseBool(chainCfg.Opts["http"])
+
 	config := &Config{
 		name:                   chainCfg.Name,
 		id:                     chainCfg.Id,
@@ -73,11 +78,13 @@ func parseChainConfig(chainCfg *core.ChainConfig) (*Config, error) {
 		gasLimit:               big.NewInt(DefaultGasLimit),
 		maxGasPrice:            big.NewInt(DefaultGasPrice),
 		gasMultiplier:          big.NewFloat(DefaultGasMultiplier),
-		http:                   false,
-		prefix:                 "atp",
+		http:                   http,
+		prefix:                 chainCfg.Opts[PrefixOpt],
+		networkId: 				chainCfg.Opts[NetWorkIdOpt],
 		startBlock:             big.NewInt(0),
 		blockConfirmations:     big.NewInt(0),
 	}
+	fmt.Printf("load config: http is %v\n prefix is %v\nnetworkId is %v\n id is %v\n", config.http, config.prefix, config.networkId, config.id)
 
 	if contract, ok := chainCfg.Opts[BridgeOpt]; ok && contract != "" {
 		config.bridgeContract = common.HexToAddress(contract)
@@ -164,6 +171,11 @@ func parseChainConfig(chainCfg *core.ChainConfig) (*Config, error) {
 	if prefix, ok := chainCfg.Opts[PrefixOpt]; ok && prefix != "" {
 		config.prefix = prefix
 		delete(chainCfg.Opts, PrefixOpt)
+	}
+
+	if networkId, ok := chainCfg.Opts[NetWorkIdOpt]; ok && networkId != "" {
+		config.networkId = networkId
+		delete(chainCfg.Opts, NetWorkIdOpt)
 	}
 
 	if len(chainCfg.Opts) != 0 {

@@ -25,17 +25,16 @@ package substrate
 
 import (
 	"fmt"
+	"github.com/ChainSafe/log15"
+	"github.com/JFJun/go-substrate-crypto/ss58"
+	signature2 "github.com/centrifuge/go-substrate-rpc-client/v2/signature"
+	"github.com/rjman-self/go-polkadot-rpc-client/client"
 	"github.com/rjman-self/platdot-utils/blockstore"
 	"github.com/rjman-self/platdot-utils/core"
 	"github.com/rjman-self/platdot-utils/crypto/sr25519"
 	"github.com/rjman-self/platdot-utils/keystore"
 	metrics "github.com/rjman-self/platdot-utils/metrics/types"
 	"github.com/rjman-self/platdot-utils/msg"
-	"github.com/ChainSafe/log15"
-	"github.com/JFJun/go-substrate-crypto/ss58"
-	signature2 "github.com/centrifuge/go-substrate-rpc-client/v2/signature"
-	"github.com/rjman-self/go-polkadot-rpc-client/client"
-	"github.com/rjmand/go-substrate-rpc-client/v2/signature"
 	"github.com/rjmand/go-substrate-rpc-client/v2/types"
 )
 
@@ -84,7 +83,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	stop := make(chan int)
 
 	// Setup connection
-	conn := NewConnection(cfg.Endpoint, cfg.Name, (*signature.KeyringPair)(krp), logger, stop, sysErr)
+	conn := NewConnection(cfg.Endpoint, cfg.Name, krp, logger, stop, sysErr)
 
 	err = conn.Connect()
 	if err != nil {

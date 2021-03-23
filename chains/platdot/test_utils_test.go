@@ -9,13 +9,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rjman-self/platdot-utils/keystore"
-	"github.com/rjman-self/platdot-utils/msg"
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/rjman-self/Platdot/bindings/Bridge"
-	connection "github.com/rjman-self/Platdot/connections/ethereum"
+	connection "github.com/rjman-self/Platdot/connections/platdot"
 	utils "github.com/rjman-self/Platdot/shared/platdot"
+	"github.com/rjman-self/platdot-utils/keystore"
+	"github.com/rjman-self/platdot-utils/msg"
 )
 
 const TestEndpoint = "ws://localhost:8545"

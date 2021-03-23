@@ -21,23 +21,21 @@ The writer recieves the message and creates a proposals on-chain. Once a proposa
 package platdot
 
 import (
-	"github.com/rjman-self/platdot-utils/blockstore"
-	"github.com/rjman-self/platdot-utils/core"
-	"github.com/rjman-self/platdot-utils/crypto/secp256k1"
-	"github.com/rjman-self/platdot-utils/keystore"
-	"os"
-	"strconv"
-
-	metrics "github.com/rjman-self/platdot-utils/metrics/types"
-	"github.com/rjman-self/platdot-utils/msg"
 	"github.com/ChainSafe/log15"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	bridge "github.com/rjman-self/Platdot/bindings/Bridge"
 	erc20Handler "github.com/rjman-self/Platdot/bindings/ERC20Handler"
-	connection "github.com/rjman-self/Platdot/connections/ethereum"
+	connection "github.com/rjman-self/Platdot/connections/platdot"
+	"github.com/rjman-self/platdot-utils/blockstore"
+	"github.com/rjman-self/platdot-utils/core"
+	"github.com/rjman-self/platdot-utils/crypto/secp256k1"
+	"github.com/rjman-self/platdot-utils/keystore"
+	metrics "github.com/rjman-self/platdot-utils/metrics/types"
+	"github.com/rjman-self/platdot-utils/msg"
 	"math/big"
+	"os"
 )
 
 var _ core.Chain = &Chain{}
@@ -84,8 +82,8 @@ func InitializeChain(chainCfg *core.ChainConfig, logger log15.Logger, sysErr cha
 		return nil, err
 	}
 
-	// set alaya chainid
-	err = os.Setenv("Alaya_ChainId", strconv.Itoa(int(cfg.id)))
+	// set Alaya chainId
+	err = os.Setenv("networkId", cfg.networkId)
 	if err != nil {
 		return nil, err
 	}
