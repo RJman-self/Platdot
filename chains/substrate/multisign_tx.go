@@ -24,6 +24,7 @@ type MultiSigAsMulti struct {
 	StoreCall        bool
 	MaxWeight        uint64
 	DepositNonce     msg.Nonce
+	YesVote          []string
 }
 
 type MultiSignTxStatistics struct {

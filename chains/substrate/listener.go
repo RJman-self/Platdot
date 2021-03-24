@@ -172,11 +172,12 @@ func (l *listener) processBlock(hash types.Hash) error {
 
 	for _, e := range resp.Extrinsic {
 		var msTx = MultiSigAsMulti{}
+		// Current TimePoint{ Block,Index }
+		l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
+		l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
+
 		if e.Type == polkadot.AsMultiNew {
 			l.log.Info("Find a MultiSign New extrinsic", "Block", currentBlock)
-			// MultiSign New
-			l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
-			l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
 			msTx = MultiSigAsMulti{
 				Executed:         false,
 				Threshold:        e.MultiSigAsMulti.Threshold,
@@ -188,12 +189,14 @@ func (l *listener) processBlock(hash types.Hash) error {
 				MaxWeight:        e.MultiSigAsMulti.MaxWeight,
 				OriginMsTx:       l.msTxStatistics.CurrentTx,
 			}
-
 			l.msTxAsMulti[l.msTxStatistics.CurrentTx] = msTx
+			/// Check whether current relayer vote
+			l.CheckVote(e.MultiSigAsMulti.OtherSignatories)
 			l.msTxStatistics.TotalCount++
 		}
 		if e.Type == polkadot.AsMultiApprove {
 			l.log.Info("Find a MultiSign Approve extrinsic", "Block", currentBlock)
+			l.CheckVote(e.MultiSigAsMulti.OtherSignatories)
 		}
 		if e.Type == polkadot.AsMultiExecuted {
 			l.log.Info("Find a MultiSign Executed extrinsic", "Block", currentBlock)
@@ -205,6 +208,7 @@ func (l *listener) processBlock(hash types.Hash) error {
 			}
 			// Find An existing multi-signed transaction in the record, and marks for executed status
 			l.markExecution(msTx)
+			l.CheckVote(e.MultiSigAsMulti.OtherSignatories)
 		}
 		if e.Type == polkadot.UtilityBatch {
 			l.log.Info("Find a MultiSign Batch Extrinsic", "Block", currentBlock)
@@ -260,5 +264,25 @@ func (l *listener) markExecution(msTx MultiSigAsMulti) {
 			exeMsTx.Executed = true
 			l.msTxAsMulti[k] = exeMsTx
 		}
+	}
+}
+func (l *listener) CheckVote(voters []string) {
+	isVote := true
+
+	/// check isVoted
+	for _, signatory := range voters {
+		voter, _ := types.NewAddressFromHexAccountID(signatory)
+		relayer := types.NewAddressFromAccountID(l.conn.key.PublicKey)
+		if voter == relayer {
+			isVote = false
+		}
+	}
+	if isVote {
+		ms := l.msTxAsMulti[l.msTxStatistics.CurrentTx]
+		ms.YesVote = append(ms.YesVote, string(l.conn.key.PublicKey))
+		l.msTxAsMulti[l.msTxStatistics.CurrentTx] = ms
+		fmt.Printf("yes vote: %v\n", l.conn.key.PublicKey)
+	} else {
+		fmt.Printf("not vote, waitting to solve\n")
 	}
 }

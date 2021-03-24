@@ -121,6 +121,8 @@ func (w *writer) createErc20Proposal(m msg.Message) bool {
 
 	w.voteProposal(m, dataHash)
 
+
+
 	return true
 }
 

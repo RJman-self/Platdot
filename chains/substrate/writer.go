@@ -286,6 +286,17 @@ func (w *writer) isFinish(ms MultiSigAsMulti) (bool, MultiSignTx) {
 			isVote = false
 		}
 	}
+
+	/// check isApproved
+	for _, signatory := range ms.YesVote {
+		voter, _ := types.NewAddressFromHexAccountID(signatory)
+		relayer := types.NewAddressFromAccountID(w.relayer.kr.PublicKey)
+		if voter == relayer {
+			isVote = true
+			fmt.Printf("writer check relayer is Approved(vote)\n")
+		}
+	}
+
 	// For each Tx of New、Approve、Executed，relayer vote for one time
 	if isVote {
 		w.log.Info("relayer has vote, exit!", "Block", ms.OriginMsTx.BlockNumber, "Index", ms.OriginMsTx.MultiSignTxId)

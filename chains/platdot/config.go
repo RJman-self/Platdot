@@ -84,8 +84,7 @@ func parseChainConfig(chainCfg *core.ChainConfig) (*Config, error) {
 		startBlock:             big.NewInt(0),
 		blockConfirmations:     big.NewInt(0),
 	}
-	fmt.Printf("load config: http is %v\n prefix is %v\nnetworkId is %v\n id is %v\n", config.http, config.prefix, config.networkId, config.id)
-
+	//fmt.Printf("load config: http is %v\n prefix is %v\nnetworkId is %v\n id is %v\n", config.http, config.prefix, config.networkId, config.id)
 	if contract, ok := chainCfg.Opts[BridgeOpt]; ok && contract != "" {
 		config.bridgeContract = common.HexToAddress(contract)
 		delete(chainCfg.Opts, BridgeOpt)
