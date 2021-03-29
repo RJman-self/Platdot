@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/rjman-self/go-polkadot-rpc-client/expand/polkadot"
+	"github.com/rjman-self/go-polkadot-rpc-client/models"
 	"strconv"
 
 	"github.com/rjman-self/go-polkadot-rpc-client/client"
@@ -40,14 +41,18 @@ type listener struct {
 	msTxAsMulti    map[MultiSignTx]MultiSigAsMulti
 	resourceId     msg.ResourceId
 	destId         msg.ChainId
+	relayer        Relayer
 }
 
 // Frequency of polling for a new block
 var BlockRetryInterval = time.Second * 5
+var DOT = 1e12
+var FixedFee  = 0 * DOT
+var FeeRate = 0.001
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,
 	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, multiSignAddress types.AccountID, cli *client.Client,
-	resource msg.ResourceId, dest msg.ChainId) *listener {
+	resource msg.ResourceId, dest msg.ChainId, relayer Relayer) *listener {
 	return &listener{
 		name:          name,
 		chainId:       id,
@@ -64,6 +69,7 @@ func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint6
 		msTxAsMulti:   make(map[MultiSignTx]MultiSigAsMulti, 500),
 		resourceId:    resource,
 		destId:        dest,
+		relayer: 	   relayer,
 	}
 }
 
@@ -191,12 +197,12 @@ func (l *listener) processBlock(hash types.Hash) error {
 			}
 			l.msTxAsMulti[l.msTxStatistics.CurrentTx] = msTx
 			/// Check whether current relayer vote
-			l.CheckVote(e.MultiSigAsMulti.OtherSignatories)
+			l.CheckVote(e)
 			l.msTxStatistics.TotalCount++
 		}
 		if e.Type == polkadot.AsMultiApprove {
 			l.log.Info("Find a MultiSign Approve extrinsic", "Block", currentBlock)
-			l.CheckVote(e.MultiSigAsMulti.OtherSignatories)
+			l.CheckVote(e)
 		}
 		if e.Type == polkadot.AsMultiExecuted {
 			l.log.Info("Find a MultiSign Executed extrinsic", "Block", currentBlock)
@@ -208,7 +214,7 @@ func (l *listener) processBlock(hash types.Hash) error {
 			}
 			// Find An existing multi-signed transaction in the record, and marks for executed status
 			l.markExecution(msTx)
-			l.CheckVote(e.MultiSigAsMulti.OtherSignatories)
+			l.CheckVote(e)
 		}
 		if e.Type == polkadot.UtilityBatch {
 			l.log.Info("Find a MultiSign Batch Extrinsic", "Block", currentBlock)
@@ -217,22 +223,23 @@ func (l *listener) processBlock(hash types.Hash) error {
 			if err != nil {
 				return err
 			}
-			amount = (amount * 95) / 100
-			recipient := []byte(e.Recipient)
-			depositNonceA := strconv.FormatInt(currentBlock, 10)
-			depositNonceB := strconv.FormatInt(int64(e.ExtrinsicIndex), 10)
 
-			depositNonce, _ := strconv.ParseInt(depositNonceA+depositNonceB, 10, 64)
+			fee := int64(FixedFee + float64(amount) * FeeRate)
+			actualAmount := amount - fee
+			//fmt.Printf("Amount is %v, Fee is %v, ActualAmount = %v\n", amount, fee, actualAmount)
+
+			recipient := []byte(e.Recipient)
+			depositNonce, _ := strconv.ParseInt(strconv.FormatInt(currentBlock, 10)+strconv.FormatInt(int64(e.ExtrinsicIndex), 10), 10, 64)
 
 			m := msg.NewFungibleTransfer(
 				l.chainId,
 				l.destId,
 				msg.Nonce(depositNonce),
-				big.NewInt(amount),
+				big.NewInt(actualAmount),
 				l.resourceId,
 				recipient,
 			)
-			l.log.Info("Ready to send PDOT...", "Amount", amount, "Recipient", recipient)
+			l.log.Info("Ready to send PDOT...", "Amount", actualAmount, "Recipient", recipient)
 			l.submitMessage(m, err)
 			if err != nil {
 				l.log.Error("Submit message to Alaya:", "Error", err)
@@ -266,22 +273,36 @@ func (l *listener) markExecution(msTx MultiSigAsMulti) {
 		}
 	}
 }
-func (l *listener) CheckVote(voters []string) {
+func (l *listener) CheckVote(e *models.ExtrinsicResponse) {
 	isVote := true
 
 	/// check isVoted
-	for _, signatory := range voters {
+	for _, signatory := range e.MultiSigAsMulti.OtherSignatories {
 		voter, _ := types.NewAddressFromHexAccountID(signatory)
-		relayer := types.NewAddressFromAccountID(l.conn.key.PublicKey)
+		relayer := types.NewAddressFromAccountID(l.relayer.kr.PublicKey)
 		if voter == relayer {
 			isVote = false
 		}
 	}
+	/// Mark vote
+	//_, height := e.MultiSigAsMulti.MaybeTimePoint.Height.Unwrap()
+	//originTx := MultiSignTx{
+	//	BlockNumber:   BlockNumber(height),
+	//	MultiSignTxId: MultiSignTxId(e.MultiSigAsMulti.MaybeTimePoint.Index),
+	//}
+	//
+	//ms := l.msTxAsMulti[originTx]
+	//voter, _ := types2.NewAddressFromHexAccountID(e.FromAddress)
+	//ms.YesVote = append(ms.YesVote, voter.AsAccountID)
+	//yesVotes := len(ms.YesVote)
+	//l.msTxAsMulti[originTx] = ms
+	//
+	//if l.relayer.kr.Address == e.FromAddress {
+	//	isVote = true
+	//}
+
 	if isVote {
-		ms := l.msTxAsMulti[l.msTxStatistics.CurrentTx]
-		ms.YesVote = append(ms.YesVote, string(l.conn.key.PublicKey))
-		l.msTxAsMulti[l.msTxStatistics.CurrentTx] = ms
-		fmt.Printf("yes vote: %v\n", l.conn.key.PublicKey)
+		l.log.Info("Relayer yes vote", "RelayerId", l.relayer.currentRelayer, "Threshold", l.relayer.multiSignThreshold)
 	} else {
 		fmt.Printf("not vote, waitting to solve\n")
 	}

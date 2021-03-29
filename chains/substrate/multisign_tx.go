@@ -1,8 +1,9 @@
 package substrate
 
 import (
-	"github.com/rjman-self/platdot-utils/msg"
+	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	"github.com/rjman-self/go-polkadot-rpc-client/expand"
+	"github.com/rjman-self/platdot-utils/msg"
 )
 
 type MultiSignTxId uint64
@@ -24,7 +25,7 @@ type MultiSigAsMulti struct {
 	StoreCall        bool
 	MaxWeight        uint64
 	DepositNonce     msg.Nonce
-	YesVote          []string
+	YesVote          []types.AccountID
 }
 
 type MultiSignTxStatistics struct {

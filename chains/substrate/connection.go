@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/rjman-self/platdot-utils/msg"
 	"github.com/ChainSafe/log15"
+	"github.com/rjman-self/platdot-utils/msg"
 	gsrpc "github.com/rjmand/go-substrate-rpc-client/v2"
 
 	utils "github.com/rjman-self/Platdot/shared/substrate"

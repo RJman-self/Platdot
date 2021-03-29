@@ -1,12 +1,12 @@
 # Platdot
 
-[English]() | 简体中文
+English | [简体中文](./README_CN.md)
 
-​																	![sad](https://img.shields.io/badge/build-passing-{右半部分颜色})![sad](https://img.shields.io/badge/test-passing-{右半部分颜色})![sad](https://img.shields.io/badge/release-v1.0.0-E6007A)
+​																	![build](https://img.shields.io/badge/build-passing-{})![test](https://img.shields.io/badge/test-passing-{})![release](https://img.shields.io/badge/release-v1.0.0-E6007A)
 
 ![](https://cdn.jsdelivr.net/gh/rjman-self/resources/assets/Platdot.png)
 
-`Platdot` is a cross-chain project based on [ChainBridge](https://github.com/ChainSafe/ChainBridge). In order to achieve two-way cross-chain, platdot needs to deploy a pallet on the Substrate chain that is equivalent to the smart contract in the EVM, but it cannot be deployed on polkadot. Our team has improved this. Through Platdot, it can be passed without pallet. The multi-signature module realizes a completely decentralized token transfer across Polkadot, transferring Dot on Polkadot to PlatON, and it can also be applied to kusama, chainX and other networks that have huge value but cannot deploy pallets on their own.
+`Platdot` is a cross-chain project based on [chainbridge] (https://github.com/chainsafe/chainbridge). In order to complete the double-ended cross chain, chainbridge needs to deploy a smart contract with multis-signed functions on EVM, and Integrate the corresponding multi-sign module based on the substrate development chain, but you can't upload your module on the existing polkadot and kusama network, our team is redesigned and optimized to this part of the function, realizing Alaya / Platon and Kusama / Polkadot's cross chain interoperability. With Platodt, there is no need to complete cross-chain recharge and redemption by the exchange, and the multi-signature design of Platdot has achieved the circulation of the detriments, or it can be applied to Kusama, ChainX and other networks with great value.
 
 ## Installation
 

@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"github.com/ChainSafe/log15"
 	"github.com/JFJun/go-substrate-crypto/ss58"
-	signature2 "github.com/centrifuge/go-substrate-rpc-client/v2/signature"
+	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
 	"github.com/rjman-self/go-polkadot-rpc-client/client"
 	"github.com/rjman-self/platdot-utils/blockstore"
 	"github.com/rjman-self/platdot-utils/core"
@@ -64,7 +64,7 @@ func checkBlockstore(bs *blockstore.Blockstore, startBlock uint64) (uint64, erro
 }
 
 func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- error, m *metrics.ChainMetrics) (*Chain, error) {
-	// Load keypair
+	/// Load keypair
 	kp, err := keystore.KeypairFromAddress(cfg.From, keystore.SubChain, cfg.KeystorePath, cfg.Insecure)
 	if err != nil {
 		return nil, err
@@ -72,7 +72,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 
 	krp := kp.(*sr25519.Keypair).AsKeyringPair()
 
-	// Attempt to load latest block
+	/// Attempt to load latest block
 	bs, err := blockstore.NewBlockstore(cfg.BlockstorePath, cfg.Id, kp.Address())
 	if err != nil {
 		return nil, err
@@ -82,7 +82,7 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 
 	stop := make(chan int)
 
-	// Setup connection
+	/// Setup connection
 	conn := NewConnection(cfg.Endpoint, cfg.Name, krp, logger, stop, sysErr)
 
 	err = conn.Connect()
@@ -99,11 +99,11 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 		startBlock = uint64(curr.Number)
 	}
 
-	// Load listener and writer needed config
+	/// Load listener and writer needed config
 	ue := parseUseExtended(cfg)
 	otherRelayers := parseOtherRelayer(cfg)
 	multiSignAddress := parseMultiSignAddress(cfg)
-	total, current, threshold := parseMultiSignConfig(cfg)
+	total, currentRelayer, threshold := parseMultiSignConfig(cfg)
 	weight := parseMaxWeight(cfg)
 	url := parseUrl(cfg)
 	dest := parseDestId(cfg)
@@ -115,9 +115,12 @@ func InitializeChain(cfg *core.ChainConfig, logger log15.Logger, sysErr chan<- e
 	}
 	cli.SetPrefix(ss58.PolkadotPrefix)
 
-	// Setup listener & writer
-	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, logger, bs, stop, sysErr, m, types.AccountID(multiSignAddress), cli, resource, dest)
-	w := NewWriter(conn, l, logger, sysErr, m, ue, (*signature2.KeyringPair)(krp), otherRelayers, total, current, threshold, weight)
+	/// Set relayer parameters
+	relayer := NewRelayer((signature.KeyringPair)(*krp), otherRelayers, total, threshold, currentRelayer)
+
+	/// Setup listener & writer
+	l := NewListener(conn, cfg.Name, cfg.Id, startBlock, logger, bs, stop, sysErr, m, types.AccountID(multiSignAddress), cli, resource, dest, relayer)
+	w := NewWriter(conn, l, logger, sysErr, m, ue, weight, relayer)
 
 	return &Chain{
 		cfg:      cfg,

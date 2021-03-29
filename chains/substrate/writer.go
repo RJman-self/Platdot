@@ -9,7 +9,6 @@ import (
 	"github.com/ChainSafe/log15"
 	gsrpc "github.com/centrifuge/go-substrate-rpc-client/v2"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/rpc/author"
-	"github.com/centrifuge/go-substrate-rpc-client/v2/signature"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
 	utils "github.com/rjman-self/Platdot/shared/substrate"
 	"github.com/rjman-self/platdot-utils/core"
@@ -26,18 +25,12 @@ var TerminatedError = errors.New("terminated")
 const RoundInterval = time.Second * 2
 const oneToken = 1000000
 const Mod = 1
+
 var NotExecuted = MultiSignTx{
 	BlockNumber:   -1,
 	MultiSignTxId: 0,
 }
 
-type Relayer struct {
-	kr                 signature.KeyringPair
-	otherSignatories   []types.AccountID
-	totalRelayers      uint64
-	multiSignThreshold uint16
-	currentRelayer     uint64
-}
 
 type writer struct {
 	conn               *Connection
@@ -52,8 +45,7 @@ type writer struct {
 }
 
 func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error,
-	m *metrics.ChainMetrics, extendCall bool, krp *signature.KeyringPair, otherRelayers []types.AccountID,
-	total uint64, current uint64, threshold uint16, weight uint64) *writer {
+	m *metrics.ChainMetrics, extendCall bool, weight uint64, relayer Relayer) *writer {
 
 	api, err := gsrpc.NewSubstrateAPI(conn.url)
 	if err != nil {
@@ -68,13 +60,7 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 		metrics:            m,
 		extendCall:         extendCall,
 		msApi:              api,
-		relayer: 			Relayer{
-			kr:                 *krp,
-			otherSignatories:   otherRelayers,
-			totalRelayers: total,
-			multiSignThreshold: threshold,
-			currentRelayer:     current,
-		},
+		relayer: 			relayer,
 		maxWeight:          weight,
 	}
 }
@@ -111,7 +97,12 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 	// Convert PDOT amount to DOT amount
 	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
 	bigAmt.Div(bigAmt, big.NewInt(oneToken))
-	amount := types.NewUCompactFromUInt(bigAmt.Uint64())
+	// calculate fee
+	fee := uint64(FixedFee + float64(bigAmt.Uint64()) * FeeRate)
+	actualAmount := bigAmt.Uint64() - fee
+	amount := types.NewUCompactFromUInt(actualAmount)
+
+	//fmt.Printf("Amount is %v, Fee is %v, ActualAmount = %v\n", bigAmt.Uint64(), fee, amount)
 
 	// Get recipient of Polkadot
 	recipient, _ := types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
@@ -288,14 +279,13 @@ func (w *writer) isFinish(ms MultiSigAsMulti) (bool, MultiSignTx) {
 	}
 
 	/// check isApproved
-	for _, signatory := range ms.YesVote {
-		voter, _ := types.NewAddressFromHexAccountID(signatory)
-		relayer := types.NewAddressFromAccountID(w.relayer.kr.PublicKey)
-		if voter == relayer {
-			isVote = true
-			fmt.Printf("writer check relayer is Approved(vote)\n")
-		}
-	}
+	//for _, signatory := range ms.YesVote {
+	//	relayer := types.NewAddressFromAccountID(w.relayer.kr.PublicKey).AsAccountID
+	//	if signatory == relayer {
+	//		isVote = true
+	//		fmt.Printf("writer check relayer is Approved(vote)\n")
+	//	}
+	//}
 
 	// For each Tx of New、Approve、Executed，relayer vote for one time
 	if isVote {

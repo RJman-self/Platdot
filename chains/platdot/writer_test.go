@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rjman-self/platdot-utils/msg"
 	"github.com/ChainSafe/log15"
 	eth "github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
@@ -18,6 +17,7 @@ import (
 	"github.com/rjman-self/Platdot/bindings/Bridge"
 	utils "github.com/rjman-self/Platdot/shared/platdot"
 	ethtest "github.com/rjman-self/Platdot/shared/platdot/testing"
+	"github.com/rjman-self/platdot-utils/msg"
 )
 
 func createWriters(t *testing.T, client *utils.Client, contracts *utils.DeployedContracts) (*writer, *writer, func(), func(), chan error, chan error) {
