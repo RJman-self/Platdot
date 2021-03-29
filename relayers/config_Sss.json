@@ -4,24 +4,24 @@
       "name": "alaya",
       "type": "ethereum",
       "id": "222",
-      "endpoint": "http://localhost:6789",
-      "from": "atx1sy2tvmghdv47hwz89yu9wz2y29nd0frr0578e3",
+      "endpoint": "http://47.110.34.31:6789",
+      "from": "atp1sy2tvmghdv47hwz89yu9wz2y29nd0frr9jzd2m",
       "opts": {
         "bridge": "atp1ed4mz9wawr7dnnznjx4uuu4uwdquc0wwn9uu96",
         "erc20Handler": "atp13kpqglnd5xl699smjulk64v048ku7d50c8jt5p",
         "http": "true",
-        "prefix": "atp"
+        "prefix": "atp",
+        "networkId": "201030"
       }
     },
     {
       "name": "polkadot",
       "type": "substrate",
       "id": "1",
-      "endpoint": "ws://127.0.0.1:9944",
+      "endpoint": "wss://westend-rpc.polkadot.io",
       "from": "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm",
-      "latestBlock": "true",
       "opts": {
-        "MultiSignAddress": "0x4acbb630c9f7e011af0783bdd8b2a22ab834b8e5bcc1dbf35bd2a8f1ca8ebd8e",
+        "MultiSignAddress": "0x83b0e4664507e7072dd2b30e9c5f68a708979e741a965048fb1ccbc61bd331f5",
         "TotalRelayer": "5",
         "CurrentRelayerNumber": "1",
         "MultiSignThreshold": "3",
