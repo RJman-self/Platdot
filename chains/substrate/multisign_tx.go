@@ -8,6 +8,7 @@ import (
 
 type MultiSignTxId uint64
 type BlockNumber int64
+type OtherSignatories []string
 
 type MultiSignTx struct {
 	BlockNumber   BlockNumber
@@ -18,7 +19,7 @@ type MultiSigAsMulti struct {
 	OriginMsTx       MultiSignTx
 	Executed         bool
 	Threshold        uint16
-	OtherSignatories []string
+	Others  		 []OtherSignatories
 	MaybeTimePoint   expand.TimePointSafe32
 	DestAddress      string
 	DestAmount       string
@@ -26,9 +27,4 @@ type MultiSigAsMulti struct {
 	MaxWeight        uint64
 	DepositNonce     msg.Nonce
 	YesVote          []types.AccountID
-}
-
-type MultiSignTxStatistics struct {
-	TotalCount    MultiSignTxId
-	CurrentTx     MultiSignTx
 }

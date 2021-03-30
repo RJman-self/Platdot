@@ -37,7 +37,7 @@ type listener struct {
 	metrics        *metrics.ChainMetrics
 	client         client.Client
 	multiSignAddr  types.AccountID
-	msTxStatistics MultiSignTxStatistics
+	currentTx      MultiSignTx
 	msTxAsMulti    map[MultiSignTx]MultiSigAsMulti
 	resourceId     msg.ResourceId
 	destId         msg.ChainId
@@ -179,42 +179,51 @@ func (l *listener) processBlock(hash types.Hash) error {
 	for _, e := range resp.Extrinsic {
 		var msTx = MultiSigAsMulti{}
 		// Current TimePoint{ Block,Index }
-		l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
-		l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
+		l.currentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
+		l.currentTx.BlockNumber = BlockNumber(currentBlock)
 
 		if e.Type == polkadot.AsMultiNew {
 			l.log.Info("Find a MultiSign New extrinsic", "Block", currentBlock)
 			msTx = MultiSigAsMulti{
 				Executed:         false,
 				Threshold:        e.MultiSigAsMulti.Threshold,
-				OtherSignatories: e.MultiSigAsMulti.OtherSignatories,
 				MaybeTimePoint:   e.MultiSigAsMulti.MaybeTimePoint,
 				DestAddress:      e.MultiSigAsMulti.DestAddress,
 				DestAmount:       e.MultiSigAsMulti.DestAmount,
+				Others:           nil,
 				StoreCall:        e.MultiSigAsMulti.StoreCall,
 				MaxWeight:        e.MultiSigAsMulti.MaxWeight,
-				OriginMsTx:       l.msTxStatistics.CurrentTx,
+				OriginMsTx:       l.currentTx,
 			}
-			l.msTxAsMulti[l.msTxStatistics.CurrentTx] = msTx
+			/// Mark voted
+			msTx.Others = append(msTx.Others, e.MultiSigAsMulti.OtherSignatories)
+			l.msTxAsMulti[l.currentTx] = msTx
 			/// Check whether current relayer vote
-			l.CheckVote(e)
-			l.msTxStatistics.TotalCount++
+			//l.CheckVote(e)
 		}
 		if e.Type == polkadot.AsMultiApprove {
 			l.log.Info("Find a MultiSign Approve extrinsic", "Block", currentBlock)
-			l.CheckVote(e)
+
+			msTx = MultiSigAsMulti{
+				DestAddress: e.MultiSigAsMulti.DestAddress,
+				DestAmount:  e.MultiSigAsMulti.DestAmount,
+			}
+
+			l.markVote(msTx, e)
+			//l.CheckVote(e)
 		}
 		if e.Type == polkadot.AsMultiExecuted {
 			l.log.Info("Find a MultiSign Executed extrinsic", "Block", currentBlock)
-			l.msTxStatistics.CurrentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
-			l.msTxStatistics.CurrentTx.BlockNumber = BlockNumber(currentBlock)
+			l.currentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
+			l.currentTx.BlockNumber = BlockNumber(currentBlock)
 			msTx = MultiSigAsMulti{
 				DestAddress: e.MultiSigAsMulti.DestAddress,
 				DestAmount:  e.MultiSigAsMulti.DestAmount,
 			}
 			// Find An existing multi-signed transaction in the record, and marks for executed status
+			l.markVote(msTx, e)
 			l.markExecution(msTx)
-			l.CheckVote(e)
+			//l.CheckVote(e)
 		}
 		if e.Type == polkadot.UtilityBatch {
 			l.log.Info("Find a MultiSign Batch Extrinsic", "Block", currentBlock)
@@ -273,6 +282,18 @@ func (l *listener) markExecution(msTx MultiSigAsMulti) {
 		}
 	}
 }
+
+func (l *listener) markVote(msTx MultiSigAsMulti, e *models.ExtrinsicResponse) {
+	for k, ms := range l.msTxAsMulti {
+		if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == msTx.DestAmount {
+			l.log.Info("relayer succeed vote", "Address", e.FromAddress)
+			voteMsTx := l.msTxAsMulti[k]
+			voteMsTx.Others = append(voteMsTx.Others, e.MultiSigAsMulti.OtherSignatories)
+			l.msTxAsMulti[k] = voteMsTx
+		}
+	}
+}
+
 func (l *listener) CheckVote(e *models.ExtrinsicResponse) {
 	isVote := true
 

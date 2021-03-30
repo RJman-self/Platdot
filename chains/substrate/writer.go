@@ -22,7 +22,7 @@ var _ core.Writer = &writer{}
 
 var TerminatedError = errors.New("terminated")
 
-const RoundInterval = time.Second * 2
+const RoundInterval = time.Second * 6
 const oneToken = 1000000
 const Mod = 1
 
@@ -67,6 +67,7 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.log.Info("Start a redeemTx...")
+	retryTime := 5
 	go func() {
 		for {
 			isFinished, currentTx := w.redeemTx(m)
@@ -76,6 +77,11 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 					w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "Block", currentTx.BlockNumber)
 					delete(w.listener.msTxAsMulti, currentTx)
 				}
+				break
+			}
+			retryTime--
+			if retryTime == 0 {
+				w.log.Error("Can't finish the redeemTx, check it", "depositNonce", m.DepositNonce)
 				break
 			}
 		}
@@ -141,7 +147,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 			// Traverse all of matched Tx, included New、Approve、Executed
 			for _, ms := range w.listener.msTxAsMulti {
 				// Validate parameter
-				if ms.DestAddress == destAddress[2:] && ms.DestAmount == bigAmt.String() {
+				if ms.DestAddress == destAddress[2:] && ms.DestAmount == big.NewInt(int64(actualAmount)).String() {
 					/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
 					finished, executed := w.isFinish(ms)
 					if finished {
@@ -158,9 +164,9 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 					break
 				} else {
 					maybeTimePoint = []byte{}
-
 				}
 			}
+
 			if len(w.listener.msTxAsMulti) == 0 {
 				maybeTimePoint = []byte{}
 			}
@@ -267,14 +273,20 @@ func (w *writer) isFinish(ms MultiSigAsMulti) (bool, MultiSignTx) {
 	if ms.Executed {
 		return true, ms.OriginMsTx
 	}
-	var isVote = true
 
 	/// check isVoted
-	for _, signatory := range ms.OtherSignatories {
-		voter, _ := types.NewAddressFromHexAccountID(signatory)
-		relayer := types.NewAddressFromAccountID(w.relayer.kr.PublicKey)
-		if voter == relayer {
-			isVote = false
+	for _, others := range ms.Others {
+		var isVote = true
+		for _, signatory := range others {
+			voter, _ := types.NewAddressFromHexAccountID(signatory)
+			relayer := types.NewAddressFromAccountID(w.relayer.kr.PublicKey)
+			if voter == relayer {
+				isVote = false
+			}
+		}
+		if isVote {
+			w.log.Info("relayer has vote, exit!", "Block", ms.OriginMsTx.BlockNumber, "Index", ms.OriginMsTx.MultiSignTxId)
+			return true, NotExecuted
 		}
 	}
 
@@ -288,10 +300,7 @@ func (w *writer) isFinish(ms MultiSigAsMulti) (bool, MultiSignTx) {
 	//}
 
 	// For each Tx of New、Approve、Executed，relayer vote for one time
-	if isVote {
-		w.log.Info("relayer has vote, exit!", "Block", ms.OriginMsTx.BlockNumber, "Index", ms.OriginMsTx.MultiSignTxId)
-		return true, NotExecuted
-	}
+
 	return false, NotExecuted
 }
 
