@@ -103,19 +103,26 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 	// BEGIN: Create a call of transfer
 	method := string(utils.BalancesTransferKeepAliveMethod)
 
-	// Convert PDOT amount to DOT amount
-	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
-	bigAmt.Div(bigAmt, big.NewInt(oneToken))
-	// calculate fee
-	fee := uint64(FixedFee + float64(bigAmt.Uint64())*FeeRate)
-	actualAmount := bigAmt.Uint64() - fee
-	if actualAmount < 0 {
-		fmt.Printf("Transfer amount is too low to pay the fee, skip\n")
-		return true, NotExecuted
-	}
-	amount := types.NewUCompactFromUInt(actualAmount)
+	// Convert AKSM amount to KSM amount
+	amount := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
+	receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneToken))
 
-	fmt.Printf("AKSM to KSM, Amount is %v, Fee is %v, ActualAmount = %v\n", bigAmt.Uint64(), fee, amount)
+	// calculate fee
+
+	fixedFee := big.NewInt(FixedFee)
+	additionalFee := big.NewInt(0).Div(receiveAmount, big.NewInt(FeeRate))
+	fee := big.NewInt(0).Add(fixedFee, additionalFee)
+
+	actualAmount := big.NewInt(0).Sub(receiveAmount, fee)
+
+	//if actualAmount < 0 {
+	//	fmt.Printf("Transfer amount is too low to pay the fee, skip\n")
+	//	return true, NotExecuted
+	//}
+
+	sendAmount := types.NewUCompact(actualAmount)
+
+	fmt.Printf("AKSM to KSM, Amount is %v, Fee is %v, Actual_KSM_Amount = %v\n", receiveAmount, fee, actualAmount)
 
 	// Get recipient of Polkadot
 	recipient, _ := types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
@@ -125,7 +132,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 		w.meta,
 		method,
 		recipient,
-		amount,
+		sendAmount,
 	)
 
 	if err != nil {
@@ -156,7 +163,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 			// Traverse all of matched Tx, included New、Approve、Executed
 			for _, ms := range w.listener.msTxAsMulti {
 				// Validate parameter
-				if ms.DestAddress == destAddress[2:] && ms.DestAmount == big.NewInt(int64(actualAmount)).String() {
+				if ms.DestAddress == destAddress[2:] && ms.DestAmount == actualAmount.String() {
 					/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
 					finished, executed := w.isFinish(ms)
 					if finished {

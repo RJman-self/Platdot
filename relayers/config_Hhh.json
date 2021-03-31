@@ -24,7 +24,7 @@
       "opts": {
         "MultiSignAddress": "0x83b0e4664507e7072dd2b30e9c5f68a708979e741a965048fb1ccbc61bd331f5",
         "TotalRelayer": "5",
-        "CurrentRelayerNumber": "3",
+        "CurrentRelayerNumber": "1",
         "MultiSignThreshold": "3",
         "OtherRelayer1": "0x50a80eb26a7fb43ff4f84ead705fc61c1d4074112e53f781a6b03c0c7504f663",
         "OtherRelayer2": "0x923eeef27b93315c97e63e0c1284b7433ffbc413a58da0626a63955a48586075",

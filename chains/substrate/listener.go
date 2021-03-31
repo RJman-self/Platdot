@@ -47,9 +47,9 @@ type listener struct {
 // Frequency of polling for a new block
 var BlockRetryInterval = time.Second * 5
 var BlockRetryLimit = 10
-var KSM = 1e12
-var FixedFee = 0.3 * KSM
-var FeeRate = 0.001
+var KSM int64 = 1e12
+var FixedFee = KSM * 3 / 100
+var FeeRate int64 = 1000
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,
 	stop <-chan int, sysErr chan<- error, m *metrics.ChainMetrics, multiSignAddress types.AccountID, cli *client.Client,
@@ -252,19 +252,34 @@ func (l *listener) processBlock(hash types.Hash) error {
 		if e.Type == polkadot.UtilityBatch {
 			l.log.Info("Find a MultiSign Batch Extrinsic", "Block", currentBlock)
 			// Construct parameters of message
-			amount, err := strconv.ParseInt(e.Amount, 10, 64)
-			if err != nil {
-				return err
-			}
+			//amount, err := strconv.ParseInt(e.Amount, 10, 64)
 
-			fee := int64(FixedFee + float64(amount)*FeeRate)
-			actualAmount := (amount - fee) * oneToken
-			fmt.Printf("KSM to AKSM, Amount is %v, Fee is %v, ActualAmount = %v\n", amount, fee, actualAmount)
-
-			if actualAmount < 0 {
-				fmt.Printf("Transfer amount is too low to pay the fee, skip\n")
-				continue
+			n := new(big.Int)
+			n, ok := n.SetString(e.Amount, 10)
+			if !ok {
+				fmt.Println("SetString: error")
 			}
+			fmt.Println(n)
+
+			amount, ok := big.NewInt(0).SetString(e.Amount, 10)
+			if !ok {
+				fmt.Printf("parse transfer amount %v, amount.string %v\n", amount, amount.String())
+			}
+			receiveAmount := amount
+
+			fixedFee := big.NewInt(FixedFee)
+			additionalFee := big.NewInt(0).Div(amount, big.NewInt(FeeRate))
+			fee := big.NewInt(0).Add(fixedFee, additionalFee)
+
+			actualAmount := big.NewInt(0).Sub(amount, fee)
+			sendAmount := big.NewInt(0).Mul(actualAmount, big.NewInt(oneToken))
+
+			fmt.Printf("KSM to AKSM, Amount is %v, Fee is %v, Actual_AKSM_Amount = %v\n", receiveAmount, fee, sendAmount)
+
+			//if sendAmount{
+			//	fmt.Printf("Transfer amount is too low to pay the fee, skip\n")
+			//	continue
+			//}
 
 			recipient := []byte(e.Recipient)
 			depositNonce, _ := strconv.ParseInt(strconv.FormatInt(currentBlock, 10)+strconv.FormatInt(int64(e.ExtrinsicIndex), 10), 10, 64)
@@ -273,7 +288,7 @@ func (l *listener) processBlock(hash types.Hash) error {
 				l.chainId,
 				l.destId,
 				msg.Nonce(depositNonce),
-				big.NewInt(actualAmount),
+				sendAmount,
 				l.resourceId,
 				recipient,
 			)
