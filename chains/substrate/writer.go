@@ -31,37 +31,44 @@ var NotExecuted = MultiSignTx{
 	MultiSignTxId: 0,
 }
 
-
 type writer struct {
-	conn               *Connection
-	listener           *listener
-	log                log15.Logger
-	sysErr             chan<- error
-	metrics            *metrics.ChainMetrics
-	extendCall         bool // Extend extrinsic calls to substrate with ResourceID.Used for backward compatibility with example pallet.
-	msApi              *gsrpc.SubstrateAPI
-	relayer			   Relayer
-	maxWeight          uint64
+	meta       *types.Metadata
+	conn       *Connection
+	listener   *listener
+	log        log15.Logger
+	sysErr     chan<- error
+	metrics    *metrics.ChainMetrics
+	extendCall bool // Extend extrinsic calls to substrate with ResourceID.Used for backward compatibility with example pallet.
+	msApi      *gsrpc.SubstrateAPI
+	relayer    Relayer
+	maxWeight  uint64
 }
 
 func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error,
 	m *metrics.ChainMetrics, extendCall bool, weight uint64, relayer Relayer) *writer {
 
-	api, err := gsrpc.NewSubstrateAPI(conn.url)
+	msApi, err := gsrpc.NewSubstrateAPI(conn.url)
 	if err != nil {
 		panic(err)
 	}
 
+	meta, err := msApi.RPC.State.GetMetadataLatest()
+	if err != nil {
+		fmt.Printf("GetMetadataLatest err\n")
+		panic(err)
+	}
+
 	return &writer{
-		conn:               conn,
-		listener:           listener,
-		log:                log,
-		sysErr:             sysErr,
-		metrics:            m,
-		extendCall:         extendCall,
-		msApi:              api,
-		relayer: 			relayer,
-		maxWeight:          weight,
+		meta:       meta,
+		conn:       conn,
+		listener:   listener,
+		log:        log,
+		sysErr:     sysErr,
+		metrics:    m,
+		extendCall: extendCall,
+		msApi:      msApi,
+		relayer:    relayer,
+		maxWeight:  weight,
 	}
 }
 
@@ -90,11 +97,7 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 }
 
 func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
-	meta, err := w.msApi.RPC.State.GetMetadataLatest()
-	if err != nil {
-		panic(err)
-	}
-
+	w.UpdateMetadate()
 	types.SetSerDeOptions(types.SerDeOptions{NoPalletIndices: true})
 
 	// BEGIN: Create a call of transfer
@@ -104,23 +107,29 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 	bigAmt := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
 	bigAmt.Div(bigAmt, big.NewInt(oneToken))
 	// calculate fee
-	fee := uint64(FixedFee + float64(bigAmt.Uint64()) * FeeRate)
+	fee := uint64(FixedFee + float64(bigAmt.Uint64())*FeeRate)
 	actualAmount := bigAmt.Uint64() - fee
+	if actualAmount < 0 {
+		fmt.Printf("Transfer amount is too low to pay the fee, skip\n")
+		return true, NotExecuted
+	}
 	amount := types.NewUCompactFromUInt(actualAmount)
 
-	//fmt.Printf("Amount is %v, Fee is %v, ActualAmount = %v\n", bigAmt.Uint64(), fee, amount)
+	fmt.Printf("AKSM to KSM, Amount is %v, Fee is %v, ActualAmount = %v\n", bigAmt.Uint64(), fee, amount)
 
 	// Get recipient of Polkadot
 	recipient, _ := types.NewMultiAddressFromHexAccountID(string(m.Payload[1].([]byte)))
 
 	// Create a transfer_keep_alive call
 	c, err := types.NewCall(
-		meta,
+		w.meta,
 		method,
 		recipient,
 		amount,
 	)
+
 	if err != nil {
+		fmt.Printf("NewCall err\n")
 		panic(err)
 	}
 
@@ -178,8 +187,9 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 				w.log.Info("Try to Approve a MultiSignTx!", "Block", height, "Index", maybeTimePoint.(TimePointSafe32).Index, "depositNonce", m.DepositNonce)
 			}
 
-			mc, err := types.NewCall(meta, mulMethod, threshold, w.relayer.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
+			mc, err := types.NewCall(w.meta, mulMethod, threshold, w.relayer.otherSignatories, maybeTimePoint, EncodeCall(c), false, maxWeight)
 			if err != nil {
+				fmt.Printf("New MultiCall err\n")
 				panic(err)
 			}
 			///END: Create a call of MultiSignTransfer
@@ -197,23 +207,23 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 
 func (w *writer) submitTx(c types.Call) {
 	// BEGIN: Get the essential information first
-	meta, err := w.msApi.RPC.State.GetMetadataLatest()
-	if err != nil {
-		panic(err)
-	}
+	w.UpdateMetadate()
 
 	genesisHash, err := w.msApi.RPC.Chain.GetBlockHash(0)
 	if err != nil {
+		fmt.Printf("GetBlockHash err\n")
 		panic(err)
 	}
 
 	rv, err := w.msApi.RPC.State.GetRuntimeVersionLatest()
 	if err != nil {
+		fmt.Printf("GetRuntimeVersionLatest err\n")
 		panic(err)
 	}
 
-	key, err := types.CreateStorageKey(meta, "System", "Account", w.relayer.kr.PublicKey, nil)
+	key, err := types.CreateStorageKey(w.meta, "System", "Account", w.relayer.kr.PublicKey, nil)
 	if err != nil {
+		fmt.Printf("CreateStorageKey err\n")
 		panic(err)
 	}
 	// END: Get the essential information
@@ -222,6 +232,7 @@ func (w *writer) submitTx(c types.Call) {
 	var accountInfo types.AccountInfo
 	ok, err := w.msApi.RPC.State.GetStorageLatest(key, &accountInfo)
 	if err != nil || !ok {
+		fmt.Printf("GetStorageLatest err\n")
 		panic(err)
 	}
 
@@ -243,6 +254,7 @@ func (w *writer) submitTx(c types.Call) {
 	ext := types.NewExtrinsic(c)
 	err = ext.MultiSign(w.relayer.kr, o)
 	if err != nil {
+		fmt.Printf("MultiTx Sign err\n")
 		panic(err)
 	}
 
@@ -251,13 +263,13 @@ func (w *writer) submitTx(c types.Call) {
 }
 
 func (w *writer) getRound() *big.Int {
-	finalizedHash, err := w.listener.conn.api.RPC.Chain.GetFinalizedHead()
+	finalizedHash, err := w.listener.client.Api.RPC.Chain.GetFinalizedHead()
 	if err != nil {
 		w.listener.log.Error("Writer Failed to fetch finalized hash", "err", err)
 	}
 
 	// Get finalized block header
-	finalizedHeader, err := w.listener.conn.api.RPC.Chain.GetHeader(finalizedHash)
+	finalizedHeader, err := w.listener.client.Api.RPC.Chain.GetHeader(finalizedHash)
 	if err != nil {
 		w.listener.log.Error("Failed to fetch finalized header", "err", err)
 	}
@@ -323,5 +335,12 @@ func (w *writer) watchSubmission(sub *author.ExtrinsicStatusSubscription) error 
 			w.log.Trace("Extrinsic subscription error\n", "err", err)
 			return err
 		}
+	}
+}
+
+func (w *writer) UpdateMetadate() {
+	meta, _ := w.msApi.RPC.State.GetMetadataLatest()
+	if meta != nil {
+		w.meta = meta
 	}
 }

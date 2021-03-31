@@ -24,30 +24,31 @@ import (
 )
 
 type listener struct {
-	name           string
-	chainId        msg.ChainId
-	startBlock     uint64
-	blockStore     blockstore.Blockstorer
-	conn           *Connection
-	router         chains.Router
-	log            log15.Logger
-	stop           <-chan int
-	sysErr         chan<- error
-	latestBlock    metrics.LatestBlock
-	metrics        *metrics.ChainMetrics
-	client         client.Client
-	multiSignAddr  types.AccountID
-	currentTx      MultiSignTx
-	msTxAsMulti    map[MultiSignTx]MultiSigAsMulti
-	resourceId     msg.ResourceId
-	destId         msg.ChainId
-	relayer        Relayer
+	name          string
+	chainId       msg.ChainId
+	startBlock    uint64
+	blockStore    blockstore.Blockstorer
+	conn          *Connection
+	router        chains.Router
+	log           log15.Logger
+	stop          <-chan int
+	sysErr        chan<- error
+	latestBlock   metrics.LatestBlock
+	metrics       *metrics.ChainMetrics
+	client        client.Client
+	multiSignAddr types.AccountID
+	currentTx     MultiSignTx
+	msTxAsMulti   map[MultiSignTx]MultiSigAsMulti
+	resourceId    msg.ResourceId
+	destId        msg.ChainId
+	relayer       Relayer
 }
 
 // Frequency of polling for a new block
 var BlockRetryInterval = time.Second * 5
-var DOT = 1e12
-var FixedFee  = 0 * DOT
+var BlockRetryLimit = 10
+var KSM = 1e12
+var FixedFee = 0.3 * KSM
 var FeeRate = 0.001
 
 func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint64, log log15.Logger, bs blockstore.Blockstorer,
@@ -69,7 +70,7 @@ func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint6
 		msTxAsMulti:   make(map[MultiSignTx]MultiSigAsMulti, 500),
 		resourceId:    resource,
 		destId:        dest,
-		relayer: 	   relayer,
+		relayer:       relayer,
 	}
 }
 
@@ -103,25 +104,34 @@ var ErrBlockNotReady = errors.New("required result to be 32 bytes, but got 0")
 // Polling begins at the block defined in `l.startBlock`. Failed attempts to fetch the latest block or parse
 // a block will be retried up to BlockRetryLimit times before returning with an error.
 func (l *listener) pollBlocks() error {
+	l.log.Info("Polling Blocks...")
 	var currentBlock = l.startBlock
+	var retry = BlockRetryLimit
 	for {
 		select {
 		case <-l.stop:
 			return errors.New("terminated")
 		default:
+			// No more retries, goto next block
+			if retry == 0 {
+				l.sysErr <- fmt.Errorf("event polling retries exceeded (chain=%d, name=%s)", l.chainId, l.name)
+				return nil
+			}
+
 			/// Get finalized block hash
 			finalizedHash, err := l.client.Api.RPC.Chain.GetFinalizedHead()
 			if err != nil {
 				l.log.Error("Failed to fetch finalized hash", "err", err)
+				retry--
 				time.Sleep(BlockRetryInterval)
 				continue
 			}
 
 			// Get finalized block header
 			finalizedHeader, err := l.client.Api.RPC.Chain.GetHeader(finalizedHash)
-
 			if err != nil {
 				l.log.Error("Failed to fetch finalized header", "err", err)
+				retry--
 				time.Sleep(BlockRetryInterval)
 				continue
 			}
@@ -130,19 +140,30 @@ func (l *listener) pollBlocks() error {
 				l.metrics.LatestKnownBlock.Set(float64(finalizedHeader.Number))
 			}
 
+			// Sleep if the block we want comes after the most recently finalized block
+			if currentBlock > uint64(finalizedHeader.Number) {
+				l.log.Trace("Block not yet finalized", "target", currentBlock, "latest", finalizedHeader.Number)
+				time.Sleep(BlockRetryInterval)
+				continue
+			}
+
+			/// Get hash for latest block, sleep and retry if not ready
 			hash, err := l.client.Api.RPC.Chain.GetBlockHash(currentBlock)
 			if err != nil && err.Error() == ErrBlockNotReady.Error() {
 				time.Sleep(BlockRetryInterval)
 				continue
 			} else if err != nil {
 				l.log.Error("Failed to query latest block", "block", currentBlock, "err", err)
+				retry--
 				time.Sleep(BlockRetryInterval)
 				continue
 			}
 
 			err = l.processBlock(hash)
 			if err != nil {
-				fmt.Printf("err is %v\n", err)
+				l.log.Error("Failed to process current block", "block", currentBlock, "err", err)
+				retry--
+				continue
 			}
 
 			// Write to blockStore
@@ -159,6 +180,9 @@ func (l *listener) pollBlocks() error {
 			currentBlock++
 			l.latestBlock.Height = big.NewInt(0).SetUint64(currentBlock)
 			l.latestBlock.LastUpdated = time.Now()
+
+			/// Succeed, reset retryLimit
+			retry = BlockRetryLimit
 		}
 	}
 }
@@ -185,15 +209,15 @@ func (l *listener) processBlock(hash types.Hash) error {
 		if e.Type == polkadot.AsMultiNew {
 			l.log.Info("Find a MultiSign New extrinsic", "Block", currentBlock)
 			msTx = MultiSigAsMulti{
-				Executed:         false,
-				Threshold:        e.MultiSigAsMulti.Threshold,
-				MaybeTimePoint:   e.MultiSigAsMulti.MaybeTimePoint,
-				DestAddress:      e.MultiSigAsMulti.DestAddress,
-				DestAmount:       e.MultiSigAsMulti.DestAmount,
-				Others:           nil,
-				StoreCall:        e.MultiSigAsMulti.StoreCall,
-				MaxWeight:        e.MultiSigAsMulti.MaxWeight,
-				OriginMsTx:       l.currentTx,
+				Executed:       false,
+				Threshold:      e.MultiSigAsMulti.Threshold,
+				MaybeTimePoint: e.MultiSigAsMulti.MaybeTimePoint,
+				DestAddress:    e.MultiSigAsMulti.DestAddress,
+				DestAmount:     e.MultiSigAsMulti.DestAmount,
+				Others:         nil,
+				StoreCall:      e.MultiSigAsMulti.StoreCall,
+				MaxWeight:      e.MultiSigAsMulti.MaxWeight,
+				OriginMsTx:     l.currentTx,
 			}
 			/// Mark voted
 			msTx.Others = append(msTx.Others, e.MultiSigAsMulti.OtherSignatories)
@@ -233,9 +257,14 @@ func (l *listener) processBlock(hash types.Hash) error {
 				return err
 			}
 
-			fee := int64(FixedFee + float64(amount) * FeeRate)
-			actualAmount := amount - fee
-			//fmt.Printf("Amount is %v, Fee is %v, ActualAmount = %v\n", amount, fee, actualAmount)
+			fee := int64(FixedFee + float64(amount)*FeeRate)
+			actualAmount := (amount - fee) * oneToken
+			fmt.Printf("KSM to AKSM, Amount is %v, Fee is %v, ActualAmount = %v\n", amount, fee, actualAmount)
+
+			if actualAmount < 0 {
+				fmt.Printf("Transfer amount is too low to pay the fee, skip\n")
+				continue
+			}
 
 			recipient := []byte(e.Recipient)
 			depositNonce, _ := strconv.ParseInt(strconv.FormatInt(currentBlock, 10)+strconv.FormatInt(int64(e.ExtrinsicIndex), 10), 10, 64)
@@ -248,10 +277,10 @@ func (l *listener) processBlock(hash types.Hash) error {
 				l.resourceId,
 				recipient,
 			)
-			l.log.Info("Ready to send PDOT...", "Amount", actualAmount, "Recipient", recipient)
+			l.log.Info("Ready to send AKSM...", "Amount", actualAmount, "Recipient", recipient)
 			l.submitMessage(m, err)
 			if err != nil {
-				l.log.Error("Submit message to Alaya:", "Error", err)
+				l.log.Error("Submit message to Writer", "Error", err)
 				return err
 			}
 		}
@@ -291,40 +320,5 @@ func (l *listener) markVote(msTx MultiSigAsMulti, e *models.ExtrinsicResponse) {
 			voteMsTx.Others = append(voteMsTx.Others, e.MultiSigAsMulti.OtherSignatories)
 			l.msTxAsMulti[k] = voteMsTx
 		}
-	}
-}
-
-func (l *listener) CheckVote(e *models.ExtrinsicResponse) {
-	isVote := true
-
-	/// check isVoted
-	for _, signatory := range e.MultiSigAsMulti.OtherSignatories {
-		voter, _ := types.NewAddressFromHexAccountID(signatory)
-		relayer := types.NewAddressFromAccountID(l.relayer.kr.PublicKey)
-		if voter == relayer {
-			isVote = false
-		}
-	}
-	/// Mark vote
-	//_, height := e.MultiSigAsMulti.MaybeTimePoint.Height.Unwrap()
-	//originTx := MultiSignTx{
-	//	BlockNumber:   BlockNumber(height),
-	//	MultiSignTxId: MultiSignTxId(e.MultiSigAsMulti.MaybeTimePoint.Index),
-	//}
-	//
-	//ms := l.msTxAsMulti[originTx]
-	//voter, _ := types2.NewAddressFromHexAccountID(e.FromAddress)
-	//ms.YesVote = append(ms.YesVote, voter.AsAccountID)
-	//yesVotes := len(ms.YesVote)
-	//l.msTxAsMulti[originTx] = ms
-	//
-	//if l.relayer.kr.Address == e.FromAddress {
-	//	isVote = true
-	//}
-
-	if isVote {
-		l.log.Info("Relayer yes vote", "RelayerId", l.relayer.currentRelayer, "Threshold", l.relayer.multiSignThreshold)
-	} else {
-		fmt.Printf("not vote, waitting to solve\n")
 	}
 }

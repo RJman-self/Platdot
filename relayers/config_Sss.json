@@ -3,22 +3,22 @@
     {
       "name": "alaya",
       "type": "ethereum",
-      "id": "222",
+      "id": "2",
       "endpoint": "http://47.110.34.31:6789",
       "from": "atp1sy2tvmghdv47hwz89yu9wz2y29nd0frr9jzd2m",
       "opts": {
-        "bridge": "atp1ed4mz9wawr7dnnznjx4uuu4uwdquc0wwn9uu96",
-        "erc20Handler": "atp13kpqglnd5xl699smjulk64v048ku7d50c8jt5p",
+        "bridge": "atp15ysxv3f9qudxnlu8cel9sx6lp6asguful3yz5z",
+        "erc20Handler": "atp142a30tfa8jae8gpxhn2xye0hyy9xlmnaajpapa",
         "http": "true",
         "prefix": "atp",
         "networkId": "201030"
       }
     },
     {
-      "name": "polkadot",
+      "name": "kusama",
       "type": "substrate",
       "id": "1",
-      "endpoint": "wss://westend-rpc.polkadot.io",
+      "endpoint": "ws://127.0.0.1:9944",
       "from": "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm",
       "opts": {
         "MultiSignAddress": "0x83b0e4664507e7072dd2b30e9c5f68a708979e741a965048fb1ccbc61bd331f5",
@@ -31,7 +31,7 @@
         "OtherRelayer4": "0xe6c2b6c4a5d3a770814f3ebe99893d1bb66e8f0d086a2badfcbb481b043ada1a",
         "ResourceId": "0x0000000000000000000000000000000000000000000000000000000000000000",
         "MaxWeight": "22698000000",
-        "DestId": "222"
+        "DestId": "2"
       }
     }
   ]
