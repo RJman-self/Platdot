@@ -18,7 +18,7 @@
       "name": "kusama",
       "type": "substrate",
       "id": "1",
-      "endpoint": "ws://127.0.0.1:9944",
+      "endpoint": "ws://34.92.164.147:9944",
       "from": "14iVc5RxY7zG8dbLWwzTfGcFstzojQuRJbgegVgumguzguWQ",
       "latestBlock": "true",
       "opts": {

@@ -18,7 +18,7 @@
       "name": "kusama",
       "type": "substrate",
       "id": "1",
-      "endpoint": "ws://127.0.0.1:9944",
+      "endpoint": "ws://34.92.164.147:9944",
       "from": "5FNTYUQwxjrVE5zRRH1hKh6fZ72AosHB7ThVnNnq9Bv9BFjm",
       "opts": {
         "MultiSignAddress": "0x83b0e4664507e7072dd2b30e9c5f68a708979e741a965048fb1ccbc61bd331f5",

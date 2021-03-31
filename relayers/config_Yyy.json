@@ -18,7 +18,7 @@
       "name": "kusama",
       "type": "substrate",
       "id": "1",
-      "endpoint": "wss://westend-rpc.polkadot.io",
+      "endpoint": "wss://34.92.164.147:9944",
       "from": "16DZrdFXiQrdunjDPq4ppM4ZudqHYi16nivQPAHPSovBM7vd",
       "latestBlock": "true",
       "opts": {
