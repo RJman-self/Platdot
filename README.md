@@ -4,7 +4,7 @@ English | [简体中文](./docs/README_CN.md)
 
 ​![build](https://img.shields.io/badge/build-passing-{})    ![test](https://img.shields.io/badge/test-passing-{})   ![release](https://img.shields.io/badge/release-v1.0.0-E6007A)
 
-![Platdot-overview](https://cdn.jsdelivr.net/gh/rjman-self/resources/assets/20210401155745.png)
+![Platdot-overview](./docs/Platdot-overview.png)
 
 ## A cross-chain Bridge
 
