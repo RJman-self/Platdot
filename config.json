@@ -29,7 +29,7 @@
         "OtherRelayer2": "",
         "OtherRelayer3": "",
         "OtherRelayer4": "",
-        "ResourceId": "",
+        "ResourceId": "0x0000000000000000000000000000000000000000000000000000000000000000",
         "MaxWeight": "22698000000",
         "DestId": "2"
       }
