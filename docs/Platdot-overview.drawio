@@ -1,18 +1,9 @@
 <mxfile>
     <diagram id="BzeWuSWtje4ORMCNxh40" name="第 1 页">
-        <mxGraphModel dx="2389" dy="2712" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+        <mxGraphModel dx="2347" dy="2809" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
-                <mxCell id="14" value="" style="verticalLabelPosition=bottom;verticalAlign=top;html=1;shape=mxgraph.flowchart.parallel_mode;pointerEvents=1;rounded=1;labelBackgroundColor=none;strokeWidth=4;fillColor=#fa6800;fontColor=#ffffff;strokeColor=#C73500;" parent="1" vertex="1">
-                    <mxGeometry x="322" y="-269" width="141" height="40" as="geometry"/>
-                </mxCell>
-                <mxCell id="15" value="&lt;font style=&quot;font-size: 22px&quot;&gt;Platon&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#C73500;strokeWidth=2;fillColor=#fa6800;fontColor=#ffffff;" parent="1" vertex="1">
-                    <mxGeometry x="169" y="-279" width="120" height="60" as="geometry"/>
-                </mxCell>
-                <mxCell id="16" value="&lt;font style=&quot;font-size: 22px&quot;&gt;Polkadot&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;strokeColor=#A50040;strokeWidth=2;fillColor=#d80073;fontColor=#ffffff;" parent="1" vertex="1">
-                    <mxGeometry x="489" y="-279" width="120" height="60" as="geometry"/>
-                </mxCell>
                 <mxCell id="67" value="" style="edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontColor=#99FF99;strokeColor=#FF8000;" parent="1" source="65" target="66" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
