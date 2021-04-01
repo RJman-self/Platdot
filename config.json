@@ -5,7 +5,7 @@
       "type": "ethereum",
       "id": "2",
       "endpoint": "http://47.110.34.31:6789",
-      "from": "atp1sy2tvmghdv47hwz89yu9wz2y29nd0frr9jzd2m",
+      "from": "",
       "opts": {
         "bridge": "atp15ysxv3f9qudxnlu8cel9sx6lp6asguful3yz5z",
         "erc20Handler": "atp142a30tfa8jae8gpxhn2xye0hyy9xlmnaajpapa",
