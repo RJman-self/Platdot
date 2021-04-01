@@ -6,6 +6,8 @@ English | [简体中文](./docs/README_CN.md)
 
 ​![build](https://img.shields.io/badge/build-passing-{})    ![test](https://img.shields.io/badge/test-passing-{})   ![release](https://img.shields.io/badge/release-v1.0.0-E6007A)
 
+[communicate with us](https://matrix.to/#/#platdot:matrix.org?via=matrix.org)
+
 ## A cross-chain Bridge
 
 `Platdot` is based on [ChainBridge](https://github.com/ChainSafe/ChainBridge) a cross-chain project developed by ),
@@ -33,7 +35,7 @@ it provides `Polkadot` cross-chain bridge for `Platon` to achieve the functions 
 
 Documentations are now moved to `GitHub Wiki`.
 
-[Start Platdot as a relayer](https://github.com/RJman-self/Platdot/wiki/Start-A-Relayer)
+[Start Platdot as a relayer](https://github.com/RJman-self/Platdot/wiki/Start-Platdot-as-a-relayer)
 
 ## License
 
