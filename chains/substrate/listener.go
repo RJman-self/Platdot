@@ -254,13 +254,6 @@ func (l *listener) processBlock(hash types.Hash) error {
 			// Construct parameters of message
 			//amount, err := strconv.ParseInt(e.Amount, 10, 64)
 
-			n := new(big.Int)
-			n, ok := n.SetString(e.Amount, 10)
-			if !ok {
-				fmt.Println("SetString: error")
-			}
-			fmt.Println(n)
-
 			amount, ok := big.NewInt(0).SetString(e.Amount, 10)
 			if !ok {
 				fmt.Printf("parse transfer amount %v, amount.string %v\n", amount, amount.String())

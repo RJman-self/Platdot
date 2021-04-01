@@ -20,9 +20,9 @@ ChainBridge适用条件
 ChainA的代币流通到ChainB：
 `ChainA Tx` -> `Deposit` -> `Event` -> `Message` -> `parseMessage` -> `ChainB Tx`
 
-+ 用户在ChainA上发起`抵押交易Tx`(Deposit)，与合约（pallet）交互产生Deposit`Event`
++ 用户在ChainA上发起`抵押交易Tx`(Deposit)，与contract（pallet）交互产生`DepositEvent`
 + ChainA的`Listener`持续监听，从存储中检索到Deposit`Event`，构造`Message`转发给对应ChainB的`Writer`
-+ Writer解析Message参数，与合约（pallet）构造`多签交易Tx`
++ Writer解析Message参数，与contract（pallet）交互构造`Proposal提案`
 + Relayer对Proposal进行投票，通过后执行多签交易
 
 #### chainbridge 智能合约和相应pallet的功能
@@ -51,26 +51,20 @@ ChainA的代币流通到ChainB：
 Platdot适用条件
 
 + 在EVM上部署具有多签模块的chainbridge-solidity智能合约
-+ 基于Substrate开发的、具有multisign pallet的链，如Polkadot / Kusama
++ 基于Substrate开发的、具有`multisign pallet`的链，如Polkadot / Kusama / Westend
 
 ![Platdot](https://cdn.jsdelivr.net/gh/rjman-self/resources/assets/Platdot.jpg)
 
-### 主要修改
+### 主要变动
 
-[polkadotJs](https://polkadot.js.org/apps/#/explorer)
-
-#### Listener的修改
+#### Listener的变动
 
 Listener监听`区块的数据`，从区块的交易中检索出所需的交易数据，构造参数发给Platon的Writer
 
-#### Writer的修改
+#### Writer的变动
 
 获取`链上`已存在的`多签交易`，构造相应的参数，新建/批准多签交易
 
 + RPC调用获取块数据
 + 解析数据取得需要的参数
 
-## EVM to EVM设想
-
-1. 在两端的EVM上直接部署chainbridge-solidity合约（无需修改）
-2. 修改Relayer的处理逻辑

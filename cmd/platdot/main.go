@@ -1,5 +1,3 @@
-// Copyright 2020 ChainSafe Systems
-
 /*
 Provides the command-line interface for the platdot application.
 
@@ -104,7 +102,7 @@ var (
 // init initializes CLI
 func init() {
 	app.Action = run
-	app.Copyright = "Copyright 2021 ChainX Authors"
+	app.Copyright = "Copyright 2021 Platdot Authors"
 	app.Name = "Platdot"
 	app.Usage = "Platdot"
 	app.Authors = []*cli.Author{{Name: "Platdot 2021"}}

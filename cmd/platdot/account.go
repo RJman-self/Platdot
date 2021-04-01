@@ -10,13 +10,13 @@ import (
 	"os"
 	"path/filepath"
 
+	log "github.com/ChainSafe/log15"
+	gokeystore "github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/rjman-self/Platdot/config"
 	"github.com/rjman-self/platdot-utils/crypto"
 	"github.com/rjman-self/platdot-utils/crypto/secp256k1"
 	"github.com/rjman-self/platdot-utils/crypto/sr25519"
 	"github.com/rjman-self/platdot-utils/keystore"
-	log "github.com/ChainSafe/log15"
-	gokeystore "github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/rjman-self/Platdot/config"
 	"github.com/urfave/cli/v2"
 )
 
