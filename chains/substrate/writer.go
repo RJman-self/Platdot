@@ -74,7 +74,6 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.log.Info("Start a redeemTx...")
-	retryTime := 5
 	go func() {
 		for {
 			isFinished, currentTx := w.redeemTx(m)
@@ -84,11 +83,6 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 					w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "Block", currentTx.BlockNumber)
 					delete(w.listener.msTxAsMulti, currentTx)
 				}
-				break
-			}
-			retryTime--
-			if retryTime == 0 {
-				w.log.Error("Can't finish the redeemTx, check it", "depositNonce", m.DepositNonce)
 				break
 			}
 		}
