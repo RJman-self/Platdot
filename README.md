@@ -1,12 +1,15 @@
 # Platdot
 
-English | [简体中文](./README_CN.md)
+English | [简体中文](./docs/README_CN.md)
 
-​																	![build](https://img.shields.io/badge/build-passing-{})![test](https://img.shields.io/badge/test-passing-{})![release](https://img.shields.io/badge/release-v1.0.0-E6007A)
+​![build](https://img.shields.io/badge/build-passing-{})    ![test](https://img.shields.io/badge/test-passing-{})   ![release](https://img.shields.io/badge/release-v1.0.0-E6007A)
 
-![](https://cdn.jsdelivr.net/gh/rjman-self/resources/assets/Platdot.png)
+![Platdot-overview](https://cdn.jsdelivr.net/gh/rjman-self/resources/assets/20210401155745.png)
 
-`Platdot` is a cross-chain project based on [chainbridge](https://github.com/chainsafe/chainbridge). In order to complete the double-ended cross chain, chainbridge needs to deploy a smart contract with multis-signed functions on EVM, and Integrate the corresponding multi-sign module based on the substrate development chain, but you can't upload your module on the existing polkadot and kusama network, our team is redesigned and optimized to this part of the function, realizing Alaya / Platon and Kusama / Polkadot's cross chain interoperability. With Platodt, there is no need to complete cross-chain recharge and redemption by the exchange, and the multi-signature design of Platdot has achieved the circulation of the detriments, or it can be applied to Kusama, ChainX and other networks with great value.
+## A cross-chain Bridge
+
+`Platdot` is based on [ChainBridge](https://github.com/ChainSafe/ChainBridge) a cross-chain project developed by ),
+it provides `Polkadot` cross-chain bridge for `Platon` to achieve the functions of PDOT **issuance**, **redemption** and **transfer**. Currently, Platdot supports cross-chain transfer of assets between EVM and substrate chains that support multiSign-pallet, such as polkadot / kusama. EVM's smart contract, as one end of the bridge, allows custom processing behavior when the transaction is received. For example, locking DOT assets on the polkadot network and executing contracts on EVM can mint and issue PDOT assets, similarly, executing contracts on EVM can destroy PDOT assets and redeem DOT assets from Polkadot's multi-signature address. Platodt currently operates under a trusted federation model, and users can complete mortgage issuance and redemption operations at a very low handling fee.
 
 ## Installation
 
