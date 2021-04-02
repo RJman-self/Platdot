@@ -96,16 +96,20 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 				if currentTx.BlockNumber != NotExecuted.BlockNumber && currentTx.MultiSignTxId != NotExecuted.MultiSignTxId {
 					w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.BlockNumber)
 					delete(w.listener.msTxAsMulti, currentTx)
-				}
-				/// Delete Message
-				dm := Dest{
-					DepositNonce: m.DepositNonce,
-					DestAddress:  string(m.Payload[1].([]byte)),
-					DestAmount:   string(m.Payload[0].([]byte)),
-				}
-				delete(w.messages, dm)
-				fmt.Printf("msg.DepositNonce %v is finished\n", m.DepositNonce)
 
+					var mutex sync.Mutex
+					mutex.Lock()
+					/// Delete Message
+					dm := Dest{
+						DepositNonce: m.DepositNonce,
+						DestAddress:  string(m.Payload[1].([]byte)),
+						DestAmount:   string(m.Payload[0].([]byte)),
+					}
+					delete(w.messages, dm)
+					mutex.Unlock()
+
+					fmt.Printf("redeemTx DepositNonce %v is finished\n", m.DepositNonce)
+				}
 				break
 			}
 		}
@@ -119,6 +123,7 @@ func (w *writer) checkRepeat(m msg.Message) bool {
 		/// Lock
 		var mutex sync.Mutex
 		mutex.Lock()
+
 		for dest := range w.messages {
 			if dest.DepositNonce != m.DepositNonce && dest.DestAmount == string(m.Payload[0].([]byte)) && dest.DestAddress == string(m.Payload[1].([]byte)) {
 				isRepeat = true
