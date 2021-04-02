@@ -96,20 +96,20 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 				if currentTx.BlockNumber != NotExecuted.BlockNumber && currentTx.MultiSignTxId != NotExecuted.MultiSignTxId {
 					w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.BlockNumber)
 					delete(w.listener.msTxAsMulti, currentTx)
-
-					var mutex sync.Mutex
-					mutex.Lock()
-					/// Delete Message
-					dm := Dest{
-						DepositNonce: m.DepositNonce,
-						DestAddress:  string(m.Payload[1].([]byte)),
-						DestAmount:   string(m.Payload[0].([]byte)),
-					}
-					delete(w.messages, dm)
-					mutex.Unlock()
-
 					fmt.Printf("redeemTx DepositNonce %v is finished\n", m.DepositNonce)
 				}
+
+				var mutex sync.Mutex
+				mutex.Lock()
+				/// Delete Message
+				dm := Dest{
+					DepositNonce: m.DepositNonce,
+					DestAddress:  string(m.Payload[1].([]byte)),
+					DestAmount:   string(m.Payload[0].([]byte)),
+				}
+				delete(w.messages, dm)
+				mutex.Unlock()
+
 				break
 			}
 		}
