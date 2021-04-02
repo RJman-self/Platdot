@@ -92,17 +92,20 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 			isFinished, currentTx := w.redeemTx(m)
 			if isFinished {
 				w.log.Info("finish a redeemTx", "DepositNonce", m.DepositNonce)
+				/// Delete Listener msTx
 				if currentTx.BlockNumber != NotExecuted.BlockNumber && currentTx.MultiSignTxId != NotExecuted.MultiSignTxId {
 					w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.BlockNumber)
 					delete(w.listener.msTxAsMulti, currentTx)
-					dm := Dest{
-						DepositNonce: m.DepositNonce,
-						DestAddress:  string(m.Payload[1].([]byte)),
-						DestAmount:   string(m.Payload[0].([]byte)),
-					}
-					delete(w.messages, dm)
-					fmt.Printf("msg.DepositNonce %v is finished\n", m.DepositNonce)
 				}
+				/// Delete Message
+				dm := Dest{
+					DepositNonce: m.DepositNonce,
+					DestAddress:  string(m.Payload[1].([]byte)),
+					DestAmount:   string(m.Payload[0].([]byte)),
+				}
+				delete(w.messages, dm)
+				fmt.Printf("msg.DepositNonce %v is finished\n", m.DepositNonce)
+
 				break
 			}
 		}
