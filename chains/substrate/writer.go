@@ -15,6 +15,7 @@ import (
 	metrics "github.com/rjman-self/platdot-utils/metrics/types"
 	"github.com/rjman-self/platdot-utils/msg"
 	"math/big"
+	"sync"
 	"time"
 )
 
@@ -75,25 +76,17 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 }
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
+	w.checkRepeat(m)
 	w.log.Info("Start a redeemTx...")
 
+	/// Mark isProcessing
 	destMessage := Dest{
-		DestAddress: string(m.Payload[1].([]byte)),
-		DestAmount:  string(m.Payload[0].([]byte)),
+		DepositNonce: m.DepositNonce,
+		DestAddress:  string(m.Payload[1].([]byte)),
+		DestAmount:   string(m.Payload[0].([]byte)),
 	}
-
-	for {
-		if w.messages[destMessage] {
-			repeatTime := RoundInterval * time.Duration(w.relayer.totalRelayers)
-			fmt.Printf("Meet a Repeat Transaction, DepositNonce is %v, wait for %v Round\n", m.DepositNonce, repeatTime)
-			time.Sleep(repeatTime)
-		} else {
-			break
-		}
-	}
-
-	/// Mark Processing
 	w.messages[destMessage] = true
+
 	go func() {
 		for {
 			isFinished, currentTx := w.redeemTx(m)
@@ -103,8 +96,9 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 					w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.BlockNumber)
 					delete(w.listener.msTxAsMulti, currentTx)
 					dm := Dest{
-						DestAddress: string(m.Payload[1].([]byte)),
-						DestAmount:  string(m.Payload[0].([]byte)),
+						DepositNonce: m.DepositNonce,
+						DestAddress:  string(m.Payload[1].([]byte)),
+						DestAmount:   string(m.Payload[0].([]byte)),
 					}
 					delete(w.messages, dm)
 					fmt.Printf("msg.DepositNonce %v is finished\n", m.DepositNonce)
@@ -113,6 +107,31 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 			}
 		}
 	}()
+	return true
+}
+
+func (w *writer) checkRepeat(m msg.Message) bool {
+	for {
+		isRepeat := false
+		/// Lock
+		var mutex sync.Mutex
+		mutex.Lock()
+		for dest := range w.messages {
+			if dest.DepositNonce != m.DepositNonce && dest.DestAmount == string(m.Payload[0].([]byte)) && dest.DestAddress == string(m.Payload[1].([]byte)) {
+				isRepeat = true
+			}
+		}
+		mutex.Unlock()
+
+		/// Check Repeat
+		if isRepeat {
+			repeatTime := RoundInterval * time.Duration(w.relayer.totalRelayers)
+			fmt.Printf("Relayer#%v Meet a Repeat Transaction, DepositNonce is %v, wait for %v Round\n", w.relayer.currentRelayer, m.DepositNonce, repeatTime)
+			time.Sleep(repeatTime)
+		} else {
+			break
+		}
+	}
 	return true
 }
 
@@ -167,7 +186,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 		processRound := (w.relayer.currentRelayer + uint64(m.DepositNonce)) % w.relayer.totalRelayers
 		round := w.getRound()
 		if round.blockRound.Uint64() == processRound {
-			fmt.Printf("current %v transactions remain", len(w.listener.msTxAsMulti))
+			fmt.Printf("current %v transactions remain\n", len(w.listener.msTxAsMulti))
 			fmt.Printf("process the message in block #%v, round #%v, depositnonce is %v\n", round.blockHeight, processRound, m.DepositNonce)
 			//fmt.Printf("Round #%d , relayer to send a MultiSignTx, depositNonce #%d\n", round.Uint64(), m.DepositNonce)
 			// Try to find a exist MultiSignTx
@@ -288,7 +307,7 @@ func (w *writer) submitTx(c types.Call) {
 
 		// Do the transfer and track the actual status
 		_, _ = w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
-		fmt.Printf("submit Tx, Relayer nonce is %v\n", nonce)
+		//fmt.Printf("submit Tx, Relayer nonce is %v\n", nonce)
 		break
 	}
 }

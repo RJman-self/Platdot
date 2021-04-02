@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+	"github.com/rjman-self/platdot-utils/msg"
 	"math/big"
 )
 
@@ -21,8 +22,9 @@ type Round struct {
 }
 
 type Dest struct {
-	DestAddress string
-	DestAmount  string
+	DepositNonce msg.Nonce
+	DestAddress  string
+	DestAmount   string
 }
 
 func EncodeCall(call types.Call) []byte {
