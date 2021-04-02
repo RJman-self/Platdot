@@ -24,7 +24,7 @@ var TerminatedError = errors.New("terminated")
 
 const RoundInterval = time.Second * 6
 const oneToken = 1000000
-const Mod = 1
+const ProcessCount = 1
 
 var NotExecuted = MultiSignTx{
 	BlockNumber:   -1,
@@ -42,6 +42,7 @@ type writer struct {
 	msApi      *gsrpc.SubstrateAPI
 	relayer    Relayer
 	maxWeight  uint64
+	messages   map[Dest]bool
 }
 
 func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr chan<- error,
@@ -69,19 +70,44 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 		msApi:      msApi,
 		relayer:    relayer,
 		maxWeight:  weight,
+		messages:   make(map[Dest]bool, InitCapacity),
 	}
 }
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.log.Info("Start a redeemTx...")
+
+	destMessage := Dest{
+		DestAddress: string(m.Payload[1].([]byte)),
+		DestAmount:  string(m.Payload[0].([]byte)),
+	}
+
+	for {
+		if w.messages[destMessage] {
+			repeatTime := RoundInterval * time.Duration(w.relayer.totalRelayers)
+			fmt.Printf("Meet a Repeat Transaction, DepositNonce is %v, wait for %v Round\n", m.DepositNonce, repeatTime)
+			time.Sleep(repeatTime)
+		} else {
+			break
+		}
+	}
+
+	/// Mark Processing
+	w.messages[destMessage] = true
 	go func() {
 		for {
 			isFinished, currentTx := w.redeemTx(m)
 			if isFinished {
 				w.log.Info("finish a redeemTx", "DepositNonce", m.DepositNonce)
 				if currentTx.BlockNumber != NotExecuted.BlockNumber && currentTx.MultiSignTxId != NotExecuted.MultiSignTxId {
-					w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "Block", currentTx.BlockNumber)
+					w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.BlockNumber)
 					delete(w.listener.msTxAsMulti, currentTx)
+					dm := Dest{
+						DestAddress: string(m.Payload[1].([]byte)),
+						DestAmount:  string(m.Payload[0].([]byte)),
+					}
+					delete(w.messages, dm)
+					fmt.Printf("msg.DepositNonce %v is finished\n", m.DepositNonce)
 				}
 				break
 			}
@@ -101,21 +127,12 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 	amount := big.NewInt(0).SetBytes(m.Payload[0].([]byte))
 	receiveAmount := big.NewInt(0).Div(amount, big.NewInt(oneToken))
 
-	// calculate fee
-
+	// calculate fee and sendAmount
 	fixedFee := big.NewInt(FixedFee)
 	additionalFee := big.NewInt(0).Div(receiveAmount, big.NewInt(FeeRate))
 	fee := big.NewInt(0).Add(fixedFee, additionalFee)
-
 	actualAmount := big.NewInt(0).Sub(receiveAmount, fee)
-
-	//if actualAmount < 0 {
-	//	fmt.Printf("Transfer amount is too low to pay the fee, skip\n")
-	//	return true, NotExecuted
-	//}
-
 	sendAmount := types.NewUCompact(actualAmount)
-
 	fmt.Printf("AKSM to KSM, Amount is %v, Fee is %v, Actual_KSM_Amount = %v\n", receiveAmount, fee, actualAmount)
 
 	// Get recipient of Polkadot
@@ -147,8 +164,11 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 	}()
 
 	for {
+		processRound := (w.relayer.currentRelayer + uint64(m.DepositNonce)) % w.relayer.totalRelayers
 		round := w.getRound()
-		if round.Uint64() == (w.relayer.currentRelayer*Mod - 1) {
+		if round.blockRound.Uint64() == processRound {
+			fmt.Printf("current %v transactions remain", len(w.listener.msTxAsMulti))
+			fmt.Printf("process the message in block #%v, round #%v, depositnonce is %v\n", round.blockHeight, processRound, m.DepositNonce)
 			//fmt.Printf("Round #%d , relayer to send a MultiSignTx, depositNonce #%d\n", round.Uint64(), m.DepositNonce)
 			// Try to find a exist MultiSignTx
 			var maybeTimePoint interface{}
@@ -209,61 +229,71 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 func (w *writer) submitTx(c types.Call) {
 	// BEGIN: Get the essential information first
 	w.UpdateMetadate()
+	retryTimes := BlockRetryLimit
+	for {
+		// No more retries, stop submitting Tx
+		if retryTimes == 0 {
+			fmt.Printf("submit Tx failed, check it\n")
+		}
+		genesisHash, err := w.msApi.RPC.Chain.GetBlockHash(0)
+		if err != nil {
+			fmt.Printf("GetBlockHash err\n")
+			retryTimes--
+			continue
+		}
+		rv, err := w.msApi.RPC.State.GetRuntimeVersionLatest()
+		if err != nil {
+			fmt.Printf("GetRuntimeVersionLatest err\n")
+			retryTimes--
+			continue
+		}
 
-	genesisHash, err := w.msApi.RPC.Chain.GetBlockHash(0)
-	if err != nil {
-		fmt.Printf("GetBlockHash err\n")
-		panic(err)
+		key, err := types.CreateStorageKey(w.meta, "System", "Account", w.relayer.kr.PublicKey, nil)
+		if err != nil {
+			fmt.Printf("CreateStorageKey err\n")
+			retryTimes--
+			continue
+		}
+		// END: Get the essential information
+
+		// Validate account and get account information
+		var accountInfo types.AccountInfo
+		ok, err := w.msApi.RPC.State.GetStorageLatest(key, &accountInfo)
+		if err != nil || !ok {
+			fmt.Printf("GetStorageLatest err\n")
+			retryTimes--
+			continue
+		}
+		// Extrinsic nonce
+		nonce := uint32(accountInfo.Nonce)
+
+		// Construct signature option
+		o := types.SignatureOptions{
+			BlockHash:          genesisHash,
+			Era:                types.ExtrinsicEra{IsMortalEra: false},
+			GenesisHash:        genesisHash,
+			Nonce:              types.NewUCompactFromUInt(uint64(nonce)),
+			SpecVersion:        rv.SpecVersion,
+			Tip:                types.NewUCompactFromUInt(0),
+			TransactionVersion: rv.TransactionVersion,
+		}
+
+		// Create and Sign the MultiSign
+		ext := types.NewExtrinsic(c)
+		err = ext.MultiSign(w.relayer.kr, o)
+		if err != nil {
+			fmt.Printf("MultiTx Sign err\n")
+			panic(err)
+		}
+
+		// Do the transfer and track the actual status
+		_, _ = w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
+		fmt.Printf("submit Tx, Relayer nonce is %v\n", nonce)
+		break
 	}
-
-	rv, err := w.msApi.RPC.State.GetRuntimeVersionLatest()
-	if err != nil {
-		fmt.Printf("GetRuntimeVersionLatest err\n")
-		panic(err)
-	}
-
-	key, err := types.CreateStorageKey(w.meta, "System", "Account", w.relayer.kr.PublicKey, nil)
-	if err != nil {
-		fmt.Printf("CreateStorageKey err\n")
-		panic(err)
-	}
-	// END: Get the essential information
-
-	// Validate account and get account information
-	var accountInfo types.AccountInfo
-	ok, err := w.msApi.RPC.State.GetStorageLatest(key, &accountInfo)
-	if err != nil || !ok {
-		fmt.Printf("GetStorageLatest err\n")
-		panic(err)
-	}
-
-	// Extrinsic nonce
-	nonce := uint32(accountInfo.Nonce)
-
-	// Construct signature option
-	o := types.SignatureOptions{
-		BlockHash:          genesisHash,
-		Era:                types.ExtrinsicEra{IsMortalEra: false},
-		GenesisHash:        genesisHash,
-		Nonce:              types.NewUCompactFromUInt(uint64(nonce)),
-		SpecVersion:        rv.SpecVersion,
-		Tip:                types.NewUCompactFromUInt(0),
-		TransactionVersion: rv.TransactionVersion,
-	}
-
-	// Create and Sign the MultiSign
-	ext := types.NewExtrinsic(c)
-	err = ext.MultiSign(w.relayer.kr, o)
-	if err != nil {
-		fmt.Printf("MultiTx Sign err\n")
-		panic(err)
-	}
-
-	// Do the transfer and track the actual status
-	_, _ = w.msApi.RPC.Author.SubmitAndWatchExtrinsic(ext)
 }
 
-func (w *writer) getRound() *big.Int {
+func (w *writer) getRound() Round {
 	finalizedHash, err := w.listener.client.Api.RPC.Chain.GetFinalizedHead()
 	if err != nil {
 		w.listener.log.Error("Writer Failed to fetch finalized hash", "err", err)
@@ -275,9 +305,15 @@ func (w *writer) getRound() *big.Int {
 		w.listener.log.Error("Failed to fetch finalized header", "err", err)
 	}
 
-	height := big.NewInt(int64(finalizedHeader.Number))
-	round := big.NewInt(0)
-	round.Mod(height, big.NewInt(int64(w.relayer.totalRelayers*Mod))).Uint64()
+	blockHeight := big.NewInt(int64(finalizedHeader.Number))
+	blockRound := big.NewInt(0)
+	blockRound.Mod(blockHeight, big.NewInt(int64(w.relayer.totalRelayers))).Uint64()
+
+	round := Round{
+		blockHeight: blockHeight,
+		blockRound:  blockRound,
+	}
+
 	return round
 }
 
@@ -302,17 +338,6 @@ func (w *writer) isFinish(ms MultiSigAsMulti) (bool, MultiSignTx) {
 			return true, NotExecuted
 		}
 	}
-
-	/// check isApproved
-	//for _, signatory := range ms.YesVote {
-	//	relayer := types.NewAddressFromAccountID(w.relayer.kr.PublicKey).AsAccountID
-	//	if signatory == relayer {
-	//		isVote = true
-	//		fmt.Printf("writer check relayer is Approved(vote)\n")
-	//	}
-	//}
-
-	// For each Tx of New、Approve、Executed，relayer vote for one time
 
 	return false, NotExecuted
 }

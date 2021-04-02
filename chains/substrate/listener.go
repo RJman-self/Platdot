@@ -45,6 +45,8 @@ type listener struct {
 }
 
 // Frequency of polling for a new block
+const InitCapacity = 500
+
 var BlockRetryInterval = time.Second * 5
 var BlockRetryLimit = 10
 var KSM int64 = 1e12
@@ -67,7 +69,7 @@ func NewListener(conn *Connection, name string, id msg.ChainId, startBlock uint6
 		metrics:       m,
 		client:        *cli,
 		multiSignAddr: multiSignAddress,
-		msTxAsMulti:   make(map[MultiSignTx]MultiSigAsMulti, 500),
+		msTxAsMulti:   make(map[MultiSignTx]MultiSigAsMulti, InitCapacity),
 		resourceId:    resource,
 		destId:        dest,
 		relayer:       relayer,
@@ -201,59 +203,34 @@ func (l *listener) processBlock(hash types.Hash) error {
 	}
 
 	for _, e := range resp.Extrinsic {
-		var msTx = MultiSigAsMulti{}
-		// Current TimePoint{ Block,Index }
-		l.currentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
+		// Current Extrinsic { Block, Index }
 		l.currentTx.BlockNumber = BlockNumber(currentBlock)
+		l.currentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
+		msTx := MultiSigAsMulti{
+			DestAddress: e.MultiSigAsMulti.DestAddress,
+			DestAmount:  e.MultiSigAsMulti.DestAmount,
+		}
 
 		if e.Type == polkadot.AsMultiNew {
 			l.log.Info("Find a MultiSign New extrinsic", "Block", currentBlock)
-			msTx = MultiSigAsMulti{
-				Executed:       false,
-				Threshold:      e.MultiSigAsMulti.Threshold,
-				MaybeTimePoint: e.MultiSigAsMulti.MaybeTimePoint,
-				DestAddress:    e.MultiSigAsMulti.DestAddress,
-				DestAmount:     e.MultiSigAsMulti.DestAmount,
-				Others:         nil,
-				StoreCall:      e.MultiSigAsMulti.StoreCall,
-				MaxWeight:      e.MultiSigAsMulti.MaxWeight,
-				OriginMsTx:     l.currentTx,
-			}
-			/// Mark voted
-			msTx.Others = append(msTx.Others, e.MultiSigAsMulti.OtherSignatories)
-			l.msTxAsMulti[l.currentTx] = msTx
-			/// Check whether current relayer vote
-			//l.CheckVote(e)
+			/// Mark New a MultiSign Transfer
+			l.markNew(e)
 		}
 		if e.Type == polkadot.AsMultiApprove {
 			l.log.Info("Find a MultiSign Approve extrinsic", "Block", currentBlock)
-
-			msTx = MultiSigAsMulti{
-				DestAddress: e.MultiSigAsMulti.DestAddress,
-				DestAmount:  e.MultiSigAsMulti.DestAmount,
-			}
-
+			/// Mark Vote(Approve)
 			l.markVote(msTx, e)
-			//l.CheckVote(e)
 		}
+
 		if e.Type == polkadot.AsMultiExecuted {
 			l.log.Info("Find a MultiSign Executed extrinsic", "Block", currentBlock)
-			l.currentTx.MultiSignTxId = MultiSignTxId(e.ExtrinsicIndex)
-			l.currentTx.BlockNumber = BlockNumber(currentBlock)
-			msTx = MultiSigAsMulti{
-				DestAddress: e.MultiSigAsMulti.DestAddress,
-				DestAmount:  e.MultiSigAsMulti.DestAmount,
-			}
 			// Find An existing multi-signed transaction in the record, and marks for executed status
 			l.markVote(msTx, e)
 			l.markExecution(msTx)
-			//l.CheckVote(e)
 		}
 		if e.Type == polkadot.UtilityBatch {
 			l.log.Info("Find a MultiSign Batch Extrinsic", "Block", currentBlock)
 			// Construct parameters of message
-			//amount, err := strconv.ParseInt(e.Amount, 10, 64)
-
 			amount, ok := big.NewInt(0).SetString(e.Amount, 10)
 			if !ok {
 				fmt.Printf("parse transfer amount %v, amount.string %v\n", amount, amount.String())
@@ -268,11 +245,6 @@ func (l *listener) processBlock(hash types.Hash) error {
 			sendAmount := big.NewInt(0).Mul(actualAmount, big.NewInt(oneToken))
 
 			fmt.Printf("KSM to AKSM, Amount is %v, Fee is %v, Actual_AKSM_Amount = %v\n", receiveAmount, fee, sendAmount)
-
-			//if sendAmount{
-			//	fmt.Printf("Transfer amount is too low to pay the fee, skip\n")
-			//	continue
-			//}
 
 			recipient := []byte(e.Recipient)
 			depositNonce, _ := strconv.ParseInt(strconv.FormatInt(currentBlock, 10)+strconv.FormatInt(int64(e.ExtrinsicIndex), 10), 10, 64)
@@ -323,10 +295,27 @@ func (l *listener) markExecution(msTx MultiSigAsMulti) {
 func (l *listener) markVote(msTx MultiSigAsMulti, e *models.ExtrinsicResponse) {
 	for k, ms := range l.msTxAsMulti {
 		if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == msTx.DestAmount {
-			l.log.Info("relayer succeed vote", "Address", e.FromAddress)
+			//l.log.Info("relayer succeed vote", "Address", e.FromAddress)
 			voteMsTx := l.msTxAsMulti[k]
 			voteMsTx.Others = append(voteMsTx.Others, e.MultiSigAsMulti.OtherSignatories)
 			l.msTxAsMulti[k] = voteMsTx
 		}
 	}
+}
+
+func (l *listener) markNew(e *models.ExtrinsicResponse) {
+	msTx := MultiSigAsMulti{
+		Executed:       false,
+		Threshold:      e.MultiSigAsMulti.Threshold,
+		MaybeTimePoint: e.MultiSigAsMulti.MaybeTimePoint,
+		DestAddress:    e.MultiSigAsMulti.DestAddress,
+		DestAmount:     e.MultiSigAsMulti.DestAmount,
+		Others:         nil,
+		StoreCall:      e.MultiSigAsMulti.StoreCall,
+		MaxWeight:      e.MultiSigAsMulti.MaxWeight,
+		OriginMsTx:     l.currentTx,
+	}
+	/// Mark voted
+	msTx.Others = append(msTx.Others, e.MultiSigAsMulti.OtherSignatories)
+	l.msTxAsMulti[l.currentTx] = msTx
 }

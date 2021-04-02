@@ -7,11 +7,22 @@ import (
 	"bytes"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/scale"
 	"github.com/centrifuge/go-substrate-rpc-client/v2/types"
+	"math/big"
 )
 
 type TimePointSafe32 struct {
 	Height types.OptionU32
 	Index  types.U32
+}
+
+type Round struct {
+	blockHeight *big.Int
+	blockRound  *big.Int
+}
+
+type Dest struct {
+	DestAddress string
+	DestAmount  string
 }
 
 func EncodeCall(call types.Call) []byte {
