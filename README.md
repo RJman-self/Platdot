@@ -13,6 +13,8 @@ English | [简体中文](./docs/README_CN.md)
 `Platdot` is based on [ChainBridge](https://github.com/ChainSafe/ChainBridge) a cross-chain project developed by ),
 it provides `Polkadot` cross-chain bridge for `Platon` to achieve the functions of PDOT **issuance**, **redemption** and **transfer**. Currently, Platdot supports cross-chain transfer of assets between EVM and substrate chains that support multiSign-pallet, such as polkadot / kusama. EVM's smart contract, as one end of the bridge, allows custom processing behavior when the transaction is received. For example, locking DOT assets on the polkadot network and executing contracts on EVM can mint and issue PDOT assets, similarly, executing contracts on EVM can destroy PDOT assets and redeem DOT assets from Polkadot's multi-signature address. Platodt currently operates under a trusted federation model, and users can complete mortgage issuance and redemption operations at a very low handling fee.
 
+It is now in the testing phase and has realized the KSM and AKSM circulation of Kusama network and Alaya network.
+
 ![Platdot-overview](./docs/Platdot-overview.png)
 
 ## Installation

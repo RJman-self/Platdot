@@ -77,7 +77,7 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.checkRepeat(m)
-	w.log.Info("Start a redeemTx...")
+	w.log.Info("Start a redeemTx...", "DepositNonce", m.DepositNonce)
 
 	/// Mark isProcessing
 	destMessage := Dest{
@@ -88,19 +88,26 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.messages[destMessage] = true
 
 	go func() {
+		// calculate spend time
+		start := time.Now()
+		defer func() {
+			cost := time.Since(start)
+			fmt.Printf("Relayer #%v finish depositNonce %v cost %v\n", w.relayer.currentRelayer, m.DepositNonce, cost)
+		}()
+
 		for {
 			isFinished, currentTx := w.redeemTx(m)
 			if isFinished {
+				var mutex sync.Mutex
+				mutex.Lock()
+
 				w.log.Info("finish a redeemTx", "DepositNonce", m.DepositNonce)
 				/// Delete Listener msTx
 				if currentTx.BlockNumber != NotExecuted.BlockNumber && currentTx.MultiSignTxId != NotExecuted.MultiSignTxId {
 					w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.BlockNumber)
 					delete(w.listener.msTxAsMulti, currentTx)
-					fmt.Printf("redeemTx DepositNonce %v is finished\n", m.DepositNonce)
 				}
 
-				var mutex sync.Mutex
-				mutex.Lock()
 				/// Delete Message
 				dm := Dest{
 					DepositNonce: m.DepositNonce,
@@ -108,6 +115,8 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 					DestAmount:   string(m.Payload[0].([]byte)),
 				}
 				delete(w.messages, dm)
+				fmt.Printf("current %v transactions remain\n", len(w.listener.msTxAsMulti))
+
 				mutex.Unlock()
 
 				break
@@ -194,7 +203,6 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 		processRound := (w.relayer.currentRelayer + uint64(m.DepositNonce)) % w.relayer.totalRelayers
 		round := w.getRound()
 		if round.blockRound.Uint64() == processRound {
-			fmt.Printf("current %v transactions remain\n", len(w.listener.msTxAsMulti))
 			fmt.Printf("process the message in block #%v, round #%v, depositnonce is %v\n", round.blockHeight, processRound, m.DepositNonce)
 			//fmt.Printf("Round #%d , relayer to send a MultiSignTx, depositNonce #%d\n", round.Uint64(), m.DepositNonce)
 			// Try to find a exist MultiSignTx
@@ -206,7 +214,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 				// Validate parameter
 				if ms.DestAddress == destAddress[2:] && ms.DestAmount == actualAmount.String() {
 					/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
-					finished, executed := w.isFinish(ms)
+					finished, executed := w.isFinish(m, ms)
 					if finished {
 						return finished, executed
 					}
@@ -344,7 +352,7 @@ func (w *writer) getRound() Round {
 	return round
 }
 
-func (w *writer) isFinish(ms MultiSigAsMulti) (bool, MultiSignTx) {
+func (w *writer) isFinish(m msg.Message, ms MultiSigAsMulti) (bool, MultiSignTx) {
 	/// check isExecuted
 	if ms.Executed {
 		return true, ms.OriginMsTx
@@ -360,9 +368,10 @@ func (w *writer) isFinish(ms MultiSigAsMulti) (bool, MultiSignTx) {
 				isVote = false
 			}
 		}
+
 		if isVote {
 			w.log.Info("relayer has vote, exit!", "Block", ms.OriginMsTx.BlockNumber, "Index", ms.OriginMsTx.MultiSignTxId)
-			return true, NotExecuted
+			return true, ms.OriginMsTx
 		}
 	}
 
