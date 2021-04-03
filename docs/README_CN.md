@@ -1,3 +1,5 @@
+<p align="center"><a href=""><img width="400" title="Platdot" src='https://cdn.jsdelivr.net/gh/rjman-self/resources/assets/platdot-logo.png' /></a></p>
+
 # Platdot
 
 [English](../README.md) | 简体中文
