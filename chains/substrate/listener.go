@@ -6,6 +6,7 @@ package substrate
 import (
 	"errors"
 	"fmt"
+	"github.com/JFJun/go-substrate-crypto/ss58"
 	"github.com/rjman-self/go-polkadot-rpc-client/expand/polkadot"
 	"github.com/rjman-self/go-polkadot-rpc-client/models"
 	"strconv"
@@ -244,8 +245,6 @@ func (l *listener) processBlock(hash types.Hash) error {
 			actualAmount := big.NewInt(0).Sub(amount, fee)
 			sendAmount := big.NewInt(0).Mul(actualAmount, big.NewInt(oneToken))
 
-			fmt.Printf("KSM to AKSM, Amount is %v, Fee is %v, Actual_AKSM_Amount = %v\n", receiveAmount, fee, sendAmount)
-
 			recipient := []byte(e.Recipient)
 			depositNonce, _ := strconv.ParseInt(strconv.FormatInt(currentBlock, 10)+strconv.FormatInt(int64(e.ExtrinsicIndex), 10), 10, 64)
 
@@ -257,11 +256,17 @@ func (l *listener) processBlock(hash types.Hash) error {
 				l.resourceId,
 				recipient,
 			)
-			l.log.Info("Ready to send AKSM...", "Amount", actualAmount, "Recipient", recipient)
-			l.submitMessage(m, err)
-			if err != nil {
-				l.log.Error("Submit message to Writer", "Error", err)
-				return err
+			/// Validate whether a cross-chain transaction
+			receivePubAddress, _ := ss58.DecodeToPub(e.ToAddress)
+			receiveAddress := types.NewAddressFromAccountID(receivePubAddress)
+			if receiveAddress.AsAccountID == l.multiSignAddr {
+				fmt.Printf("KSM to AKSM, Amount is %v, Fee is %v, Actual_AKSM_Amount = %v\n", receiveAmount, fee, sendAmount)
+				l.log.Info("Ready to send AKSM...", "Amount", actualAmount, "Recipient", recipient)
+				l.submitMessage(m, err)
+				if err != nil {
+					l.log.Error("Submit message to Writer", "Error", err)
+					return err
+				}
 			}
 		}
 	}
@@ -284,7 +289,6 @@ func (l *listener) submitMessage(m msg.Message, err error) {
 func (l *listener) markExecution(msTx MultiSigAsMulti) {
 	for k, ms := range l.msTxAsMulti {
 		if !ms.Executed && ms.DestAddress == msTx.DestAddress && ms.DestAmount == msTx.DestAmount {
-			l.log.Info("Tx executed!", "BlockNumber", ms.OriginMsTx.BlockNumber, "Address", msTx.DestAddress, "Amount", msTx.DestAmount)
 			exeMsTx := l.msTxAsMulti[k]
 			exeMsTx.Executed = true
 			l.msTxAsMulti[k] = exeMsTx

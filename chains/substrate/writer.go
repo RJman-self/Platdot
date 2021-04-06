@@ -25,11 +25,15 @@ var TerminatedError = errors.New("terminated")
 
 const RoundInterval = time.Second * 6
 const oneToken = 1000000
-const ProcessCount = 1
 
 var NotExecuted = MultiSignTx{
 	BlockNumber:   -1,
 	MultiSignTxId: 0,
+}
+
+var YesVoted = MultiSignTx{
+	BlockNumber:   -1,
+	MultiSignTxId: 1,
 }
 
 type writer struct {
@@ -74,7 +78,6 @@ func NewWriter(conn *Connection, listener *listener, log log15.Logger, sysErr ch
 		messages:   make(map[Dest]bool, InitCapacity),
 	}
 }
-
 func (w *writer) ResolveMessage(m msg.Message) bool {
 	w.checkRepeat(m)
 	w.log.Info("Start a redeemTx...", "DepositNonce", m.DepositNonce)
@@ -101,25 +104,31 @@ func (w *writer) ResolveMessage(m msg.Message) bool {
 				var mutex sync.Mutex
 				mutex.Lock()
 
-				w.log.Info("finish a redeemTx", "DepositNonce", m.DepositNonce)
-				/// Delete Listener msTx
-				if currentTx.BlockNumber != NotExecuted.BlockNumber && currentTx.MultiSignTxId != NotExecuted.MultiSignTxId {
+				/// If currentTx is Vote
+				if currentTx == YesVoted {
+					//fmt.Printf("I have Vote, wait executing\n")
+					time.Sleep(RoundInterval * time.Duration(w.relayer.totalRelayers) / 2)
+				}
+
+				if currentTx != YesVoted && currentTx != NotExecuted {
 					w.log.Info("MultiSig extrinsic executed!", "DepositNonce", m.DepositNonce, "OriginBlock", currentTx.BlockNumber)
+					/// Delete Listener msTx
 					delete(w.listener.msTxAsMulti, currentTx)
+
+					var mutex sync.Mutex
+					mutex.Lock()
+					/// Delete Message
+					dm := Dest{
+						DepositNonce: m.DepositNonce,
+						DestAddress:  string(m.Payload[1].([]byte)),
+						DestAmount:   string(m.Payload[0].([]byte)),
+					}
+					delete(w.messages, dm)
+					mutex.Unlock()
+
+					w.log.Info("finish a redeemTx", "DepositNonce", m.DepositNonce)
+					break
 				}
-
-				/// Delete Message
-				dm := Dest{
-					DepositNonce: m.DepositNonce,
-					DestAddress:  string(m.Payload[1].([]byte)),
-					DestAmount:   string(m.Payload[0].([]byte)),
-				}
-				delete(w.messages, dm)
-				fmt.Printf("current %v transactions remain\n", len(w.listener.msTxAsMulti))
-
-				mutex.Unlock()
-
-				break
 			}
 		}
 	}()
@@ -132,7 +141,6 @@ func (w *writer) checkRepeat(m msg.Message) bool {
 		/// Lock
 		var mutex sync.Mutex
 		mutex.Lock()
-
 		for dest := range w.messages {
 			if dest.DepositNonce != m.DepositNonce && dest.DestAmount == string(m.Payload[0].([]byte)) && dest.DestAddress == string(m.Payload[1].([]byte)) {
 				isRepeat = true
@@ -142,8 +150,8 @@ func (w *writer) checkRepeat(m msg.Message) bool {
 
 		/// Check Repeat
 		if isRepeat {
-			repeatTime := RoundInterval * time.Duration(w.relayer.totalRelayers)
-			fmt.Printf("Relayer#%v Meet a Repeat Transaction, DepositNonce is %v, wait for %v Round\n", w.relayer.currentRelayer, m.DepositNonce, repeatTime)
+			repeatTime := RoundInterval
+			w.log.Info("Meet a Repeat Transaction", "DepositNonce", m.DepositNonce, "Waiting", repeatTime)
 			time.Sleep(repeatTime)
 		} else {
 			break
@@ -203,8 +211,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 		processRound := (w.relayer.currentRelayer + uint64(m.DepositNonce)) % w.relayer.totalRelayers
 		round := w.getRound()
 		if round.blockRound.Uint64() == processRound {
-			fmt.Printf("process the message in block #%v, round #%v, depositnonce is %v\n", round.blockHeight, processRound, m.DepositNonce)
-			//fmt.Printf("Round #%d , relayer to send a MultiSignTx, depositNonce #%d\n", round.Uint64(), m.DepositNonce)
+			//fmt.Printf("process the message in block #%v, round #%v, depositnonce is %v\n", round.blockHeight, processRound, m.DepositNonce)
 			// Try to find a exist MultiSignTx
 			var maybeTimePoint interface{}
 			maxWeight := types.Weight(0)
@@ -214,7 +221,7 @@ func (w *writer) redeemTx(m msg.Message) (bool, MultiSignTx) {
 				// Validate parameter
 				if ms.DestAddress == destAddress[2:] && ms.DestAmount == actualAmount.String() {
 					/// Once MultiSign Extrinsic is executed, stop sending Extrinsic to Polkadot
-					finished, executed := w.isFinish(m, ms)
+					finished, executed := w.isFinish(ms)
 					if finished {
 						return finished, executed
 					}
@@ -352,13 +359,14 @@ func (w *writer) getRound() Round {
 	return round
 }
 
-func (w *writer) isFinish(m msg.Message, ms MultiSigAsMulti) (bool, MultiSignTx) {
-	/// check isExecuted
+func (w *writer) isFinish(ms MultiSigAsMulti) (bool, MultiSignTx) {
+	/// Check isExecuted
 	if ms.Executed {
 		return true, ms.OriginMsTx
 	}
 
-	/// check isVoted
+	/// Check isVoted
+	/// if already voted, avoid sending duplicated Tx until being executed
 	for _, others := range ms.Others {
 		var isVote = true
 		for _, signatory := range others {
@@ -370,8 +378,8 @@ func (w *writer) isFinish(m msg.Message, ms MultiSigAsMulti) (bool, MultiSignTx)
 		}
 
 		if isVote {
-			w.log.Info("relayer has vote, exit!", "Block", ms.OriginMsTx.BlockNumber, "Index", ms.OriginMsTx.MultiSignTxId)
-			return true, ms.OriginMsTx
+			w.log.Info("relayer has vote, wait others!", "Relayer", w.relayer.currentRelayer, "Block", ms.OriginMsTx.BlockNumber, "Index", ms.OriginMsTx.MultiSignTxId)
+			return true, YesVoted
 		}
 	}
 
